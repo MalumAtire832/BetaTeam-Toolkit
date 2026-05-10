@@ -24,7 +24,6 @@ CLI toolkit written in C# and .NET 8 for interacting with LEGO Alpha Team PC sou
 | `Malumware.BetaTeam.Lib`       | Core library — parsers, readers, converters                               |
 | `Malumware.BetaTeam.Lib.Tests` | Unit tests for the library                                                |
 | `Malumware.BetaTeam.Cli`       | CLI entry point built with [Spectre.Console](https://spectreconsole.net/) |
-| `Sandbox`                      | Scratch console for end-to-end testing against real files                 |
 
 
 ## File Formats
