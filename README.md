@@ -2,6 +2,8 @@
 
 CLI toolkit written in C# and .NET 8 for interacting with LEGO Alpha Team PC source files.
 
+Licensed under the [GNU General Public License v3.0](LICENSE).
+
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
