@@ -16,7 +16,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 0x14, 0x00, 0x00, 0x00,                     // payload offset = 0x14
                 0x02, 0x00, 0x00, 0x00,                     // file count = 2
             };
-            using var parser = new PacArchiveHeaderParser(new MemoryStream(bytes));
+            var stream = new MemoryStream(bytes);
+            using var parser = new PacArchiveHeaderParser(stream);
 
             // Act
             var header = parser.Parse();
@@ -37,7 +38,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
             bytes[1] = (byte)'O';
             bytes[2] = (byte)'P';
             bytes[3] = (byte)'E';
-            using var parser = new PacArchiveHeaderParser(new MemoryStream(bytes));
+            var stream = new MemoryStream(bytes);
+            using var parser = new PacArchiveHeaderParser(stream);
 
             // Act
             var act = () => parser.Parse();
