@@ -9,10 +9,10 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
             using var mmf = MemoryMappedFile.CreateFromFile(
                 filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read
             );
-            return Read(() => CreateStream(mmf));
+            return Read(Path.GetFileNameWithoutExtension(filePath), () => CreateStream(mmf));
         }
 
-        internal static TgaImage Read(Func<Stream> streamFactory)
+        internal static TgaImage Read(string fileName, Func<Stream> streamFactory)
         {
             using var headerParser = new TgaImageHeaderParser(streamFactory());
             var header = headerParser.Parse();
@@ -20,7 +20,7 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
             using var dataParser = new TgaImageDataParser(streamFactory(), header);
             var data = dataParser.Parse();
 
-            return new TgaImage(header, data);
+            return new TgaImage(fileName, header, data);
         }
 
         private static MemoryMappedViewStream CreateStream(MemoryMappedFile mmf)

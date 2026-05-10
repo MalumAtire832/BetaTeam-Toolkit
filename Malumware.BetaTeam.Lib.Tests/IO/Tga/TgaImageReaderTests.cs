@@ -22,7 +22,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Tga
             );
 
             // Act
-            var image = TgaImageReader.Read(() => new MemoryStream(bytes));
+            var image = TgaImageReader.Read("test", () => new MemoryStream(bytes));
 
             // Assert
             Assert.Equal(TgaImageType.UncompressedTrueColor, image.Header.ImageType);
@@ -54,7 +54,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Tga
             );
 
             // Act
-            var image = TgaImageReader.Read(() => new MemoryStream(bytes));
+            var image = TgaImageReader.Read("test", () => new MemoryStream(bytes));
 
             // Assert
             Assert.Equal(3, image.Header.IdLength);

@@ -6,7 +6,7 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
     {
         private readonly TgaImageHeader _header;
 
-        public TgaImageDataParser(Stream stream, TgaImageHeader header) 
+        public TgaImageDataParser(Stream stream, TgaImageHeader header)
             : base(stream)
         {
             _header = header;
@@ -34,19 +34,72 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
                 return null;
             }
 
-            // EntrySize is in bits — divide by 8 to get bytes per entry
-            // +7 ensures ceiling division: 15-bit entries (2 bytes) would truncate to 1 without it
-            var bytes = _header.ColorMapSpec.ColorMapLength * ((_header.ColorMapSpec.EntrySize + 7) / 8);
+            var bytes = _header.ColorMapSpec.ColorMapLength * BitsToBytes(_header.ColorMapSpec.EntrySize);
             return Reader.ReadBytes(bytes);
         }
 
         private byte[] ParsePixelData()
         {
-            // Total pixels = width × height; PixelDepth is in bits, so divide by 8 for bytes per pixel
-            // +7 ensures ceiling division: 15-bit depth (2 bytes) would truncate to 1 without it
-            var dimensions = _header.ImageSpec.Width * _header.ImageSpec.Height;
-            var size = dimensions * ((_header.ImageSpec.PixelDepth + 7) / 8);
-            return Reader.ReadBytes(size);
+            var totalPixels = _header.ImageSpec.Width * _header.ImageSpec.Height;
+            var bytesPerPixel = BitsToBytes(_header.ImageSpec.PixelDepth);
+
+            return _header.ImageType switch
+            {
+                TgaImageType.RunLengthEncodingTrueColor => ParsePixelDataRle(totalPixels, bytesPerPixel),
+                TgaImageType.RunLengthEncodingColorMapped => ParsePixelDataRle(totalPixels, bytesPerPixel),
+                TgaImageType.RunLengthEncodingGrayscale => ParsePixelDataRle(totalPixels, bytesPerPixel),
+                _ => Reader.ReadBytes(totalPixels * bytesPerPixel),
+            };
         }
+
+        /// <summary>
+        ///     RLE types store compressed packets of variable length rather than a flat array, so they need a
+        ///     different read path. The result is always fully decompressed pixel bytes, keeping
+        ///     <c>TgaImageData.PixelData</c> format-agnostic for consumers.
+        /// </summary>
+        private byte[] ParsePixelDataRle(int totalPixels, int bytesPerPixel)
+        {
+            var output = new byte[totalPixels * bytesPerPixel];
+            var written = 0;
+
+            // Each packet starts with a header byte. Bit 7 selects the packet type;
+            // bits 6–0 encode the pixel count minus one.
+            while (written < output.Length)
+            {
+                var packetHeader = Reader.ReadByte();
+                var count = (packetHeader & 0x7F) + 1; // bits 6–0: pixel count minus one (range 1–128)
+
+                if ((packetHeader & 0x80) != 0) // bit 7: set = run-length packet, clear = raw packet
+                {
+                    // Run-length packet: one pixel follows and is repeated `count` times
+                    var pixel = Reader.ReadBytes(bytesPerPixel);
+                    for (var i = 0; i < count; i++)
+                    {
+                        pixel.CopyTo(output, written);
+                        written += bytesPerPixel;
+                    }
+                }
+                else
+                {
+                    // Raw packet: `count` pixels follow and are copied literally
+                    var byteCount = count * bytesPerPixel;
+                    Reader.ReadBytes(byteCount).CopyTo(output, written);
+                    written += byteCount;
+                }
+            }
+
+            return output;
+        }
+
+        /// <summary>
+        ///     Converts a bit count to the number of bytes required to hold it.
+        /// </summary>
+        /// 
+        /// <remarks>
+        ///     Uses ceiling division so sub-byte-boundary widths round up rather than truncate:
+        ///         15 bits → 2 bytes, 24 bits → 3 bytes, 32 bits → 4 bytes.
+        /// </remarks>
+        /// 
+        private static int BitsToBytes(int bits) => (bits + 7) / 8;
     }
 }

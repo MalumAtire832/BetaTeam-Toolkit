@@ -16,12 +16,12 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
         UncompressedGrayscale = 3,
 
         /// <summary>Run-length encoded color-mapped image</summary>
-        RleColorMapped = 9,
+        RunLengthEncodingColorMapped = 9,
 
         /// <summary>Run-length encoded true-color image</summary>
-        RleTrueColor = 10,
+        RunLengthEncodingTrueColor = 10,
 
         /// <summary>Run-length encoded black-and-white (grayscale) image</summary>
-        RleGrayscale = 11,
+        RunLengthEncodingGrayscale = 11,
     }
 }
