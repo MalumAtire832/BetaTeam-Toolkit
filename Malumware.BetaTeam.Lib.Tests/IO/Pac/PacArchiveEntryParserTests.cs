@@ -13,8 +13,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 fileName: "FOO",
                 offset: 0x44u,
                 size: 3u,
-                fileTime: 0L);
-            using var parser = new PacArchiveEntryParser(new MemoryStream(bytes));
+                fileTime: 0L
+            );
+            var stream = new MemoryStream(bytes);
+            using var parser = new PacArchiveEntryParser(stream);
 
             // Act
             var entry = parser.Parse();
@@ -34,7 +36,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
         {
             // Arrange
             var bytes = BuildEntryBytes("X", offset: 0u, size: 0u, fileTime: fileTime);
-            using var parser = new PacArchiveEntryParser(new MemoryStream(bytes));
+            var stream = new MemoryStream(bytes);
+            using var parser = new PacArchiveEntryParser(stream);
 
             // Act
             var entry = parser.Parse();
@@ -49,7 +52,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
             // Arrange
             var expected = new DateTime(2024, 1, 15, 12, 0, 0, DateTimeKind.Utc);
             var bytes = BuildEntryBytes("X", offset: 0u, size: 0u, fileTime: expected.ToFileTimeUtc());
-            using var parser = new PacArchiveEntryParser(new MemoryStream(bytes));
+            var stream = new MemoryStream(bytes);
+            using var parser = new PacArchiveEntryParser(stream);
 
             // Act
             var entry = parser.Parse();
@@ -60,15 +64,15 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
 
         private static byte[] BuildEntryBytes(string fileName, uint offset, uint size, long fileTime)
         {
-            using var ms = new MemoryStream();
-            using var writer = new BinaryWriter(ms);
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
             writer.Write(Encoding.ASCII.GetBytes(fileName));
             writer.Write((byte)0);          // null terminator
             writer.Write(new byte[4]);      // 4 padding nulls
             writer.Write(offset);
             writer.Write(size);
             writer.Write(fileTime);
-            return ms.ToArray();
+            return stream.ToArray();
         }
     }
 }

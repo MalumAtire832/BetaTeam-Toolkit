@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Text;
 using Malumware.BetaTeam.Lib.IO.Pac;
 
@@ -18,7 +17,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
             var archive = reader.Read("test.pac", () => new MemoryStream(bytes));
 
             // Assert
-            Assert.Equal("test.pac", archive.FileName);
+            Assert.Equal("test", archive.FileName);
             Assert.Equal(1u, archive.Header.FileCount);
             Assert.Single(archive.Entries);
 
