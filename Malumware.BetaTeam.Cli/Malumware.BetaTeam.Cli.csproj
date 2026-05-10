@@ -8,4 +8,12 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Spectre.Console.Cli" Version="0.55.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Malumware.BetaTeam.Lib\Malumware.BetaTeam.Lib.csproj" />
+    </ItemGroup>
+
 </Project>
