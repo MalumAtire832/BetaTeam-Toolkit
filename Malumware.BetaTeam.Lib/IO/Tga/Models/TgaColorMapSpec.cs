@@ -1,4 +1,4 @@
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Models
 {
     /// <summary>Five-byte color map specification embedded in the TGA header</summary>
     public record TgaColorMapSpec

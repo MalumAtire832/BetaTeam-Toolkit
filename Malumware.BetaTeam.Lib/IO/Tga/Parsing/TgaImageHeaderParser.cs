@@ -1,6 +1,7 @@
 using Malumware.BetaTeam.Lib.IO.Parsers;
+using Malumware.BetaTeam.Lib.IO.Tga.Models;
 
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Parsing
 {
     public class TgaImageHeaderParser : AbstractParser<TgaImageHeader>
     {

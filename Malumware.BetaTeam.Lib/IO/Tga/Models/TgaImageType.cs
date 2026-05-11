@@ -1,4 +1,4 @@
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Models
 {
     /// <summary>Compression and color encoding of the image data</summary>
     public enum TgaImageType : byte
@@ -16,12 +16,12 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
         UncompressedGrayscale = 3,
 
         /// <summary>Run-length encoded color-mapped image</summary>
-        RunLengthEncodingColorMapped = 9,
+        RleColorMapped = 9,
 
         /// <summary>Run-length encoded true-color image</summary>
-        RunLengthEncodingTrueColor = 10,
+        RleTrueColor = 10,
 
         /// <summary>Run-length encoded black-and-white (grayscale) image</summary>
-        RunLengthEncodingGrayscale = 11,
+        RleGrayscale = 11,
     }
 }

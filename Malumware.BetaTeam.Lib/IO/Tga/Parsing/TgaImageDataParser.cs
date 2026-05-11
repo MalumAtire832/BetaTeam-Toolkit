@@ -1,6 +1,7 @@
 using Malumware.BetaTeam.Lib.IO.Parsers;
+using Malumware.BetaTeam.Lib.IO.Tga.Models;
 
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Parsing
 {
     public class TgaImageDataParser : AbstractParser<TgaImageData>
     {
@@ -45,9 +46,9 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
 
             return _header.ImageType switch
             {
-                TgaImageType.RunLengthEncodingTrueColor => ParsePixelDataRle(totalPixels, bytesPerPixel),
-                TgaImageType.RunLengthEncodingColorMapped => ParsePixelDataRle(totalPixels, bytesPerPixel),
-                TgaImageType.RunLengthEncodingGrayscale => ParsePixelDataRle(totalPixels, bytesPerPixel),
+                TgaImageType.RleTrueColor => ParsePixelDataRle(totalPixels, bytesPerPixel),
+                TgaImageType.RleColorMapped => ParsePixelDataRle(totalPixels, bytesPerPixel),
+                TgaImageType.RleGrayscale => ParsePixelDataRle(totalPixels, bytesPerPixel),
                 _ => Reader.ReadBytes(totalPixels * bytesPerPixel),
             };
         }

@@ -1,4 +1,6 @@
 using System.IO.MemoryMappedFiles;
+using Malumware.BetaTeam.Lib.IO.Tga.Models;
+using Malumware.BetaTeam.Lib.IO.Tga.Parsing;
 
 namespace Malumware.BetaTeam.Lib.IO.Tga
 {

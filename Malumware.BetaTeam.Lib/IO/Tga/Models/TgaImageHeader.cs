@@ -1,4 +1,4 @@
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Models
 {
     /// <summary>Parsed 18-byte fixed header at the start of every TGA file</summary>
     public record TgaImageHeader

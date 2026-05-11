@@ -1,4 +1,4 @@
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Models
 {
     /// <summary>Raw data sections of a TGA file following the fixed header</summary>
     public record TgaImageData

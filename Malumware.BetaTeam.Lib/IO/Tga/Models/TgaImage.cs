@@ -1,4 +1,4 @@
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Models
 {
     /// <summary>Parsed TGA image comprising the file header and all associated data sections</summary>
     public class TgaImage

@@ -1,4 +1,4 @@
-namespace Malumware.BetaTeam.Lib.IO.Tga
+namespace Malumware.BetaTeam.Lib.IO.Tga.Models
 {
     /// <summary>Ten-byte image specification embedded in the TGA header</summary>
     public record TgaImageSpec
@@ -29,6 +29,18 @@ namespace Malumware.BetaTeam.Lib.IO.Tga
             Height = height;
             PixelDepth = pixelDepth;
             ImageDescriptor = imageDescriptor;
+        }
+        
+        public bool IsTopToBottom()
+        {
+            // Bit 5 indicates an ordering of top-to-bottom.
+            return (ImageDescriptor & (1 << 5)) != 0;
+        }
+
+        public bool IsRightToLeft()
+        {
+            // Bit 4 indicates an ordering of right-to-left.
+            return (ImageDescriptor & (1 << 4)) != 0;
         }
     }
 }

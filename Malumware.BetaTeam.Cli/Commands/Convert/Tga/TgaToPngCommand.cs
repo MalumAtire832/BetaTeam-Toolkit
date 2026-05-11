@@ -1,4 +1,5 @@
 using Malumware.BetaTeam.Lib.IO.Tga;
+using Malumware.BetaTeam.Lib.IO.Tga.Conversion;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -34,7 +35,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Tga
                             settings.OutputDirectoryPath,
                             image.FileName + ".png"
                         );
-                        converter.Convert(image, outputPath);
+                        /*converter.Convert(image, outputPath);*/
 
                         table.AddRow(
                             $"[blue]{Path.GetFileName(filePath)}[/]",

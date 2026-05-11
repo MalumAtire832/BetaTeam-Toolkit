@@ -1,4 +1,5 @@
 using Malumware.BetaTeam.Lib.IO.Tga;
+using Malumware.BetaTeam.Lib.IO.Tga.Models;
 
 namespace Malumware.BetaTeam.Lib.Tests.IO.Tga
 {
