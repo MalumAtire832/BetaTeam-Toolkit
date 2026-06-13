@@ -119,6 +119,8 @@ bld/
 [Oo]bj/
 !Malumware.BetaTeam.Lib/IO/Obj/
 !Malumware.BetaTeam.Lib/IO/Obj/**
+!Malumware.BetaTeam.Cli/Commands/Convert/Obj/
+!Malumware.BetaTeam.Cli/Commands/Convert/Obj/**
 [Ll]og/
 
 # Visual Studio 2015 cache/options directory

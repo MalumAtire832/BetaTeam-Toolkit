@@ -1,4 +1,5 @@
 using Malumware.BetaTeam.Cli.Commands.Convert.Dds;
+using Malumware.BetaTeam.Cli.Commands.Convert.Obj;
 using Malumware.BetaTeam.Cli.Commands.Unpack;
 using Spectre.Console.Cli;
 
@@ -30,6 +31,16 @@ namespace Malumware.BetaTeam.Cli
                             .WithDescription("Convert DDS audio files in a directory to WAV format.")
                             .WithExample("convert", "dds", "wav", "/game/extracted/audio", "/game/wav")
                             .WithExample("convert", "dds", "wav", "/game/extracted/audio", "/game/wav", "--mask", "*.DDS");
+                    });
+
+                    convert.AddBranch("obj", obj =>
+                    {
+                        obj.SetDescription("Convert Wavefront OBJ files.");
+
+                        obj.AddCommand<SplitObjCommand>("split")
+                            .WithDescription("Split a multi-object OBJ file into one file per object, preserving material library references.")
+                            .WithExample("convert", "obj", "split", "/game/models/scene.obj")
+                            .WithExample("convert", "obj", "split", "/game/models/scene.obj", "/game/models/split");
                     });
                 });
             });
