@@ -19,7 +19,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Obj
             var outputDirectory = settings.OutputDirectoryPath
                 ?? Path.Combine(
                     Path.GetDirectoryName(settings.InputFilePath)!,
-                    baseName.Replace(' ', '_')
+                    $"{baseName.Replace(' ', '_')}_split"
                 );
 
             Directory.CreateDirectory(outputDirectory);
@@ -28,6 +28,8 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Obj
 
             var table = new Table()
                 .AddColumn("[grey]Object[/]")
+                .AddColumn("[grey]Vertices[/]")
+                .AddColumn("[grey]Faces[/]")
                 .AddColumn("[grey]Output[/]");
 
             AnsiConsole.Live(table)
@@ -42,6 +44,8 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Obj
 
                         table.AddRow(
                             $"[blue]{objectName}[/]",
+                            part.Vertices.Count.ToString(),
+                            part.Objects[0].Faces.Count.ToString(),
                             outputPath
                         );
                         ctx.Refresh();
