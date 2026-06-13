@@ -2,11 +2,11 @@ using System.Text;
 
 namespace Malumware.BetaTeam.Lib.IO.Parsers
 {
-    public abstract class AbstractParser<T> : IParser<T>
+    public abstract class BinaryParser<T> : IParser<T>
     {
         protected readonly BinaryReader Reader;
 
-        protected AbstractParser(Stream stream)
+        protected BinaryParser(Stream stream)
         {
             Reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: false);
         }

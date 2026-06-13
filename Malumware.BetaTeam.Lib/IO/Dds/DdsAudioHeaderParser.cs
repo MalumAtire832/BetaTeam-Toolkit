@@ -2,7 +2,7 @@ using Malumware.BetaTeam.Lib.IO.Parsers;
 
 namespace Malumware.BetaTeam.Lib.IO.Dds
 {
-    public class DdsAudioHeaderParser : AbstractParser<DdsAudioHeader>
+    public class DdsAudioHeaderParser : BinaryParser<DdsAudioHeader>
     {
         public DdsAudioHeaderParser(Stream stream)
             : base(stream) { }

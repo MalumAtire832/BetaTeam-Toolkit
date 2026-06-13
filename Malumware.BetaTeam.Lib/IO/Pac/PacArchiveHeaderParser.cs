@@ -2,7 +2,7 @@ using Malumware.BetaTeam.Lib.IO.Parsers;
 
 namespace Malumware.BetaTeam.Lib.IO.Pac
 {
-    public class PacArchiveHeaderParser : AbstractParser<PacArchiveHeader>
+    public class PacArchiveHeaderParser : BinaryParser<PacArchiveHeader>
     {
         public PacArchiveHeaderParser(Stream stream)
             : base(stream) { }

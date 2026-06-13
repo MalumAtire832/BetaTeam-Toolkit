@@ -4,7 +4,7 @@ using Malumware.Common;
 
 namespace Malumware.BetaTeam.Lib.IO.Pac
 {
-    public class PacArchiveEntryParser : AbstractParser<PacArchiveEntry>
+    public class PacArchiveEntryParser : BinaryParser<PacArchiveEntry>
     {
         public PacArchiveEntryParser(Stream stream)
             : base(stream) { }
