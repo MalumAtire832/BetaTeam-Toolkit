@@ -34,16 +34,16 @@ namespace Malumware.BetaTeam.Lib.IO.Obj
 
                 foreach (var obj2 in obj.Objects)
                 {
-                    if (obj2.Name != null)
+                    if (obj.Objects.Count > 1 && obj2.Name != null)
                     {
                         writer.WriteLine($"o {obj2.Name}");
                     }
-                    
+
                     if (obj2.Material != null)
                     {
                         writer.WriteLine($"usemtl {obj2.Material}");
                     }
-                    
+
                     foreach (var face in obj2.Faces)
                     {
                         writer.WriteLine($"f {string.Join(' ', face.Select(i => i + 1))}");

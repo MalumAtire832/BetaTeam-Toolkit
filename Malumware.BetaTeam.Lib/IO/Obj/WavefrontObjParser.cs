@@ -30,17 +30,19 @@ namespace Malumware.BetaTeam.Lib.IO.Obj
                         vertices.Add(ParseVertex(parts));
                         break;
                     case "o":
-                        currentObject = new WavefrontObjObject(string.Join(' ', parts[1..]));
+                        var nextObject = new WavefrontObjObject(string.Join(' ', parts[1..]));
+                        nextObject.Material = currentObject.Material;
+                        currentObject = nextObject;
                         objects.Add(currentObject);
                         break;
                     case "f":
                         currentObject.AddFace(ParseFace(parts));
                         break;
                     case "usemtl":
-                        currentObject.Material = parts[1];
+                        currentObject.Material = string.Join(' ', parts[1..]);
                         break;
                     case "mtllib":
-                        materialLibraries.Add(parts[1]);
+                        materialLibraries.Add(string.Join(' ', parts[1..]));
                         break;
                 }
             }
