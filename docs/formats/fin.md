@@ -128,3 +128,50 @@ A node groups other objects. It has no geometry of its own.
 | `bool`    | visual object  | Whether the node counts as something visible (inferred from the engine's name for it)   |
 | `link[]`  | children       | Child objects. A `0` is an empty slot                                                  |
 | `link[]`  | effects        | Dynamic effects (lights) that light this node's subtree                                |
+
+### NiTriShape
+
+A mesh of triangles. The class inherits from two abstract classes, `NiGeometry` and `NiTriBasedGeom`, whose fields
+come first. Unlike later NetImmerse versions, where the mesh sits in a separate `NiTriShapeData` block that several
+shapes can share, the geometry here is stored in the shape itself.
+
+Several arrays are optional. Each is preceded by a `u32` that held the array's memory address when the file was
+saved: `0` means the array is absent, anything else means it follows.
+
+From `NiGeometry`:
+
+| Type                  | Field        | Meaning                                                |
+|-----------------------|--------------|--------------------------------------------------------|
+| `u16`                 | vertex count | Number of vertices                                     |
+| `u32` + count × `vec3` | vertices    | Vertex positions, in the shape's local space           |
+| `u32` + count × `vec3` | normals     | One normal per vertex                                  |
+| `vec3`                | bound center | Center of a sphere around all vertices                 |
+| `f32`                 | bound radius | Radius of that sphere                                  |
+
+From `NiTriBasedGeom`:
+
+| Type                            | Field             | Meaning                                                          |
+|---------------------------------|-------------------|------------------------------------------------------------------|
+| `u16`                           | triangle count    | Number of triangles                                              |
+| `u16`                           | texture set count | Number of texture coordinate sets (0 to 2 in shipped files)      |
+| `u32` + sets × vertices × `vec3` | texture coordinates | One array per set, one coordinate per vertex                  |
+| `u32` + vertices × 4 × `f32`    | colours           | Vertex colours as red, green, blue, alpha                        |
+| `u32` + triangles × 4 × `f32`   | triangle planes   | A plane per triangle: normal (x, y, z) and constant. Not always normalised |
+
+From `NiTriShape`:
+
+| Type                  | Field     | Meaning                                                     |
+|-----------------------|-----------|-------------------------------------------------------------|
+| triangles × 3 × `u16` | triangles | Vertex indices of each triangle. No flag, always present    |
+
+Texture coordinates have three components, not two as in other NetImmerse versions. The first two are the usual
+u and v, and they go well outside 0..1 where textures repeat. What the third one is for isn't known yet: in the
+shipped files it is mostly `0`, and otherwise a value close to `0`, `0.5` or `1`.
+
+The engine reads all texture coordinates into one array. That the first set comes first, then the second, is
+inferred from how other NetImmerse versions store them: the file layout is the same size either way.
+
+### NiEnvMappedTriShape
+
+Stored exactly like `NiTriShape`. Going by the name, the class makes the engine draw the shape with an environment
+map (a reflection); the reading code doesn't show this.
