@@ -31,7 +31,7 @@ The game files are proprietary and must never be committed. Only the owner's leg
 
 - `Research/` is gitignored and is the local workspace for everything derived from the game.
 - Tests that need the real files use `[GameDataFact]` instead of `[Fact]`. They find the game through the
-  `BETATEAM_GAME_DIR` environment variable or `Research/game`, and skip automatically when it's missing.
+  `ALPHATEAM_GAME_DIR` environment variable or `Research/game`, and skip automatically when it's missing.
 - Never copy game data, decompiled code or disassembly into tracked files, including test fixtures. Unit tests build
   their input buffers in code.
 
