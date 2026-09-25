@@ -854,3 +854,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+
+# Local reverse-engineering workspace (game files, decompilation, notes)
+/Research/
