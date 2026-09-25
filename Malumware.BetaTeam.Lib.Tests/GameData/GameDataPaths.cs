@@ -2,7 +2,8 @@ namespace Malumware.BetaTeam.Lib.Tests.GameData
 {
     public static class GameDataPaths
     {
-        public const string ENVIRONMENT_VARIABLE = "BETATEAM_GAME_DIR";
+        private static EnumerationOptions ENUMERATION_OPTIONS = new() { MatchCasing = MatchCasing.CaseInsensitive };
+        public const string ENVIRONMENT_VARIABLE = "ALPHATEAM_GAME_DIR";
 
         public static string? GameDirectory { get; } = FindGameDirectory();
 
@@ -13,7 +14,7 @@ namespace Malumware.BetaTeam.Lib.Tests.GameData
                 return [];
             }
 
-            return Directory.EnumerateFiles(GameDirectory, "*.pac", new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive })
+            return Directory.EnumerateFiles(GameDirectory, "*.pac", ENUMERATION_OPTIONS)
                 .Order();
         }
 
@@ -40,7 +41,7 @@ namespace Malumware.BetaTeam.Lib.Tests.GameData
         private static bool ContainsArchives(string directory)
         {
             return Directory.Exists(directory)
-                && Directory.EnumerateFiles(directory, "*.pac", new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive }).Any();
+                && Directory.EnumerateFiles(directory, "*.pac", ENUMERATION_OPTIONS).Any();
         }
     }
 }
