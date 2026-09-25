@@ -2,7 +2,7 @@ namespace Malumware.BetaTeam.Lib.IO.Dds
 {
     public record DdsAudioHeader
     {
-        /// <summary>Total size in bytes of the DDS audio header, a Windows <c>WAVEFORMATEX</c> structure.</summary>
+        /// <summary>Total size in bytes of the DDS audio header.</summary>
         public const int SIZE = 18;
 
         public DdsAudioFormat Format { get; }
@@ -11,8 +11,6 @@ namespace Malumware.BetaTeam.Lib.IO.Dds
         public uint ByteRate { get; }
         public ushort BlockAlign { get; }
         public ushort BitsPerSample { get; }
-
-        /// <summary>Number of extra format bytes following the header (<c>cbSize</c>). Always 0 for PCM.</summary>
         public ushort ExtraSize { get; }
 
         public bool IsValid => Enum.IsDefined(Format);

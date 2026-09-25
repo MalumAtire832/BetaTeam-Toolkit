@@ -2,7 +2,6 @@ using System.Text;
 
 namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
 {
-    /// <summary>Helpers for writing the binary structures of a PACK archive in tests.</summary>
     internal static class PacTestData
     {
         public static void WriteHeader(BinaryWriter writer, uint archiveSize, uint directorySize)
@@ -28,7 +27,6 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
             writer.Write(fileTime);
         }
 
-        /// <summary>Size in bytes of a file entry with the given name.</summary>
         public static int EntrySize(string name)
         {
             return name.Length + 1 + 4 + 4 + 4 + 8;

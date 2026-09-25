@@ -1,17 +1,9 @@
 namespace Malumware.BetaTeam.Lib.Tests.GameData
 {
-    /// <summary>
-    /// Locates an installed copy of LEGO Alpha Team for tests that run against the original game files.
-    /// </summary>
     public static class GameDataPaths
     {
-        /// <summary>Environment variable pointing at the game's install directory.</summary>
         public const string ENVIRONMENT_VARIABLE = "BETATEAM_GAME_DIR";
 
-        /// <summary>
-        /// The game's install directory, or <c>null</c> when it cannot be found. Checks
-        /// <see cref="ENVIRONMENT_VARIABLE"/> first, then <c>Research/game</c> in the repository root.
-        /// </summary>
         public static string? GameDirectory { get; } = FindGameDirectory();
 
         public static IEnumerable<string> Archives()
