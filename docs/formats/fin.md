@@ -63,3 +63,12 @@ when a block size and a type table were added.
 Class names and markers are *sized strings*: a `u32` length followed by that many bytes. Strings inside a block
 (object names, file names) are *C strings* in the engine's terms. They use the same layout, but a length of `0`
 means there is no string at all, which is different from an empty one.
+
+### Links
+
+Every block starts with a `u32` link ID: the address the object had in memory when the file was saved. Blocks refer
+to each other by storing that value, for example a node listing its children. A link of `0` means "no object". The
+IDs themselves mean nothing once loaded; they only have to be unique within a file.
+
+Because a block can refer to one that comes later in the file, the game reads in two passes: first every block, then
+it replaces each stored ID with the object it belongs to. A reader has to do the same.
