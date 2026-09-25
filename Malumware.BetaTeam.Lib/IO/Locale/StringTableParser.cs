@@ -7,9 +7,7 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
     {
         private const string TAG_MARKER = "==";
         private const char COMMENT_CHAR = '#';
-        private const int WINDOWS_1252 = 1252;
-
-        private static readonly Encoding ENCODING = CreateEncoding();
+        private const int ENCODING = 1252; // Windows 1252
 
         private readonly List<StringTableEntry> _entries = [];
         private readonly HashSet<string> _keys = new(StringComparer.OrdinalIgnoreCase);
@@ -18,6 +16,7 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
 
         public StringTableParser(Stream stream) : base(stream)
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         }
 
         public override IReadOnlyList<StringTableEntry> Parse()
@@ -61,7 +60,7 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
                 CompleteLastLine(Decode(line));
             }
 
-            FinishEntry();
+            CloseEntry();
             return _entries;
         }
 
@@ -90,9 +89,9 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
             }
         }
 
-        // The game always consumes two characters and treats anything that isn't a hex digit as zero
         private int ReadHexDigit()
         {
+            // The game always consumes two characters and treats anything that isn't a hex digit as zero
             var value = ReadByte();
             return value switch
             {
@@ -110,13 +109,9 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
 
         private static string Decode(List<byte> line)
         {
-            return ENCODING.GetString(line.ToArray());
-        }
-
-        private static Encoding CreateEncoding()
-        {
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            return Encoding.GetEncoding(WINDOWS_1252);
+            return Encoding
+                .GetEncoding(ENCODING)
+                .GetString(line.ToArray());
         }
 
         private void CompleteLine(string line)
@@ -124,8 +119,8 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
             // Any line starting with the marker ends the current value, even when it isn't a valid tag
             if (line.StartsWith(TAG_MARKER, StringComparison.Ordinal))
             {
-                FinishEntry();
-                StartEntry(line);
+                CloseEntry();
+                OpenEntry(line);
                 return;
             }
 
@@ -135,19 +130,19 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
             }
         }
 
-        // Tags are only recognised on complete lines, but the marker still ends the current value
         private void CompleteLastLine(string line)
         {
+            // Tags are only recognized on complete lines, but the marker still ends the current value
             if (line.StartsWith(TAG_MARKER, StringComparison.Ordinal))
             {
-                FinishEntry();
+                CloseEntry();
                 return;
             }
 
             CompleteLine(line);
         }
 
-        private void StartEntry(string line)
+        private void OpenEntry(string line)
         {
             // The game only accepts tag lines longer than four characters and ignores text after the closing marker
             var end = line.IndexOf(TAG_MARKER, TAG_MARKER.Length, StringComparison.Ordinal);
@@ -164,7 +159,7 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
             }
         }
 
-        private void FinishEntry()
+        private void CloseEntry()
         {
             if (_currentKey is not null)
             {
