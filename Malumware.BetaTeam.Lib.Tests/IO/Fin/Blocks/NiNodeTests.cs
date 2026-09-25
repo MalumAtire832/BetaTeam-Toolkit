@@ -7,7 +7,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
     public class NiNodeTests
     {
         private static FinStreamBuilder WriteNiNode(
-            FinStreamBuilder builder, uint linkId, string name, uint[] children, uint hasBound = 0)
+            FinStreamBuilder builder, uint linkId, string name, uint[] children)
         {
             return builder.SizedString("NiNode").NiObject(linkId, name)
                 .Byte(0)                                // app culled
@@ -17,7 +17,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
                 .Floats(4, 5, 6)                        // velocity
                 .Refs()                                 // properties
                 .UInt32(3)                              // collision propagate
-                .UInt32(hasBound)
+                .UInt32(0)                              // no bounding volume
                 .UInt32(2)                              // sorting mode
                 .UInt32(0)                              // sorter
                 .Byte(1)                                // visual object
@@ -63,20 +63,6 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
             // Assert
             var root = Assert.IsType<NiNode>(file.TopLevelObjects[0]);
             Assert.Same(file.Objects[1], Assert.Single(root.Children).Target);
-        }
-
-        [Fact]
-        public void Read_ThrowsInvalidDataException_WhenNodeHasBoundingVolume()
-        {
-            // Arrange
-            var builder = new FinStreamBuilder().Header();
-            var bytes = WriteNiNode(builder, 0x10, "Box01", [], hasBound: 1).EndOfFile().ToArray();
-
-            // Act
-            var act = () => FinReader.Read("TEST", bytes);
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
         }
     }
 }

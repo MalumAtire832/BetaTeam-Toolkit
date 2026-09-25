@@ -12,10 +12,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         // Each class group removes its names. A name is added only after confirming the engine registers it.
         private static readonly HashSet<string> PENDING_CLASSES =
         [
-            "NiMaterialProperty", "NiAlphaProperty", "NiTextureProperty", "NiTextureModeProperty",
-            "NiMultiTextureProperty", "NiVertexColorProperty", "NiZBufferProperty", "NiSpecularProperty",
-            "NiShadeProperty", "NiImage", "NiFlipTextures",
-            "NiExtraData", "Ni3dsPropAnimExtraData", "Ni3dsAnimationNode", "Ni3dsBone", "Ni3dsSkin",
+            "NiExtraData", "TexturePropExtraData", "Ni3dsPropAnimExtraData", "Ni3dsAnimationNode", "Ni3dsBone", "Ni3dsSkin",
             "Ni3dsMorphShape", "Ni3dsColorAnimator", "Ni3dsAlphaAnimator",
             "DDUnit", "DDActorSharedData", "DDEnv", "DDCorona",
         ];
@@ -63,6 +60,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
             foreach (var (className, files) in stoppedAt.OrderByDescending(pair => pair.Value))
             {
                 _output.WriteLine($"  {files,4} stop at {className}");
+            }
+            foreach (var failure in failures)
+            {
+                _output.WriteLine(failure);
             }
 
             // Assert

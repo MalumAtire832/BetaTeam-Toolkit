@@ -43,7 +43,18 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
                 .RegisterBlock<NiEnvMappedTriShape>()
                 .RegisterBlock<NiLODNode>()
                 .RegisterBlock<NiBillboardNode>()
-                .RegisterBlock<NiLight>();
+                .RegisterBlock<NiLight>()
+                .RegisterBlock<NiAlphaProperty>()
+                .RegisterBlock<NiMaterialProperty>()
+                .RegisterBlock<NiTextureProperty>()
+                .RegisterBlock<NiTextureModeProperty>()
+                .RegisterBlock<NiMultiTextureProperty>()
+                .RegisterBlock<NiVertexColorProperty>()
+                .RegisterBlock<NiZBufferProperty>()
+                .RegisterBlock<NiSpecularProperty>()
+                .RegisterBlock<NiShadeProperty>()
+                .RegisterBlock<NiImage>()
+                .RegisterBlock<NiFlipTextures>();
         }
     }
 }

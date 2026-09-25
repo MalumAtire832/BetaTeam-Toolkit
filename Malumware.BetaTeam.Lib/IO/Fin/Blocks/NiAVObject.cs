@@ -1,4 +1,5 @@
 using System.Numerics;
+using Malumware.BetaTeam.Lib.IO.Fin.Blocks.BoundingVolumes;
 
 namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
 {
@@ -11,10 +12,13 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
         public FinMatrix3 Rotation { get; private set; }
         public float Scale { get; private set; }
         public Vector3 Velocity { get; private set; }
-        public IReadOnlyList<FinRef<NiObject>> Properties { get; private set; } = [];
+        public IReadOnlyList<FinRef<NiProperty>> Properties { get; private set; } = [];
 
         // The engine's PropagateMode enum; which number means what isn't confirmed yet
         public uint CollisionPropagate { get; private set; }
+
+        // Collision shape, stored inline
+        public NiBoundingVolume? BoundingVolume { get; private set; }
 
         internal override void Load(FinBlockReader reader)
         {
@@ -24,15 +28,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
             Rotation = reader.ReadMatrix3();
             Scale = reader.ReadSingle();
             Velocity = reader.ReadVector3();
-            Properties = reader.ReadRefList<NiObject>();
+            Properties = reader.ReadRefList<NiProperty>();
             CollisionPropagate = reader.ReadUInt32();
 
-            if (reader.ReadUInt32() != 0)
-            {
-                throw new InvalidDataException(
-                    $"{ClassName} at offset 0x{Offset:X} has a bounding volume, which isn't supported"
-                );
-            }
+            BoundingVolume = reader.ReadUInt32() != 0 ? NiBoundingVolume.Read(reader) : null;
         }
     }
 }

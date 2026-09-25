@@ -107,7 +107,7 @@ Parent of everything that has a place in the scene: nodes, shapes, lights.
 | `vec3`    | velocity            | Local velocity                                                                 |
 | `link[]`  | properties          | Render properties (material, texture, alpha, ...) that apply to this object and everything below it |
 | `u32`     | collision propagate | How collision tests treat this object's children. Which value means what hasn't been confirmed |
-| `u32`     | has bounding volume | Non-zero if a collision bounding volume follows                                |
+| `u32`     | has bounding volume | Non-zero if a collision shape follows, see [Bounding volumes](#bounding-volumes) |
 
 The transform is local: an object's position, rotation and scale are relative to its parent node, and vertices are
 relative to the shape that holds them. Where an object ends up in the world is the combination of every transform
@@ -228,3 +228,115 @@ tree as a child: nodes list the lights that shine on them in their effects.
 | `bool`      | attenuation          | Whether the light fades with distance at all                         |
 | `i32`       | light type           | Kind of light. Values not yet mapped                                  |
 | `i32` + count × `u32` | illuminated nodes | Link IDs of the nodes it lights. The game reads and ignores them: the nodes' effect lists are what count |
+
+### Bounding volumes
+
+Some objects carry a collision shape. It is stored inside the object, right after the has-bounding-volume flag, as a
+`u32` type followed by the shape:
+
+| Type | Shape         | Fields                                                                          |
+|------|---------------|---------------------------------------------------------------------------------|
+| 0    | sphere        | `vec3` center, `f32` radius, `bool` inverted                                    |
+| 1    | box           | `vec3` center, 3 × `vec3` axes, `vec3` half-size along each axis, `bool` inverted |
+| 2    | capsule       | `vec3` origin, `vec3` direction, `f32` radius, `bool` inverted                  |
+| 3    | lozenge       | `vec3` origin, two `vec3` edges of a parallelogram, `f32` radius                |
+| 4    | union         | `u32` count, then that many nested volumes. Inside any of them                  |
+| 5    | half space    | A plane: `vec3` normal and `f32` constant. Everything on one side               |
+| 6    | intersection  | `u32` count, then that many nested volumes. Inside all of them                  |
+
+Half spaces and intersections are Digital Domain's additions. An inverted shape collides from the inside, for
+example to keep something within an area. The types a file can use are registered by the collision library, so a
+type outside 0–6 can't be read.
+
+## Properties
+
+Properties set how objects are drawn. A property applies to the object that lists it and to everything below that
+object in the tree, unless something lower down overrides it. Every property starts with the `NiObject` fields and
+then a `bool` *master* flag, whose effect hasn't been confirmed. The exception is `NiShadeProperty`, which skips the
+master flag.
+
+Most mode fields below are engine enums whose numbers aren't mapped to names yet.
+
+### NiMaterialProperty
+
+| Type      | Field          | Meaning                                   |
+|-----------|----------------|-------------------------------------------|
+| 3 × `f32` | ambient colour | Colour under ambient light                |
+| 3 × `f32` | diffuse colour | Main surface colour                       |
+| 3 × `f32` | specular colour| Colour of highlights                      |
+| 3 × `f32` | emittance      | Colour the surface gives off by itself    |
+| `f32`     | shininess      | Size of highlights                        |
+| `f32`     | alpha          | Opacity, `0` transparent to `1` opaque    |
+
+### NiAlphaProperty
+
+| Type   | Field             | Meaning                                                 |
+|--------|-------------------|---------------------------------------------------------|
+| `bool` | alpha blending    | Whether the object is blended with what's behind it     |
+| `u32`  | source blend mode | Blend factor for the object's own colour                |
+| `u32`  | destination blend mode | Blend factor for the colour behind it              |
+
+### NiTextureProperty
+
+| Type     | Field  | Meaning                                                         |
+|----------|--------|-----------------------------------------------------------------|
+| `i32`    | index  | Which image in the list is shown                                |
+| `link[]` | images | `NiImage` blocks. More than one when the texture is animated    |
+
+### NiTextureModeProperty
+
+How the texture is applied. Each field is an engine enum.
+
+| Type  | Field  | Meaning                                                   |
+|-------|--------|-----------------------------------------------------------|
+| `u32` | apply  | How the texture combines with the lit surface colour      |
+| `u32` | filter | How the texture is sampled (nearest, bilinear, mipmaps)   |
+| `u32` | clamp  | Whether the texture repeats or stops at its edges         |
+
+### NiMultiTextureProperty
+
+Several textures drawn on top of each other in stages. Each list has one entry per stage.
+
+| Type                  | Field         | Meaning                                                 |
+|-----------------------|---------------|---------------------------------------------------------|
+| `link[]`              | images        | `NiImage` per stage                                     |
+| `u32` + count × `u32` | combine modes | How each stage combines with the one before             |
+| `u32` + count × `u32` | clamp modes   | As in `NiTextureModeProperty`                           |
+| `u32` + count × `u32` | filter modes  | As in `NiTextureModeProperty`                           |
+
+### Other properties
+
+| Class                   | Fields after the master flag                                        |
+|-------------------------|----------------------------------------------------------------------|
+| `NiVertexColorProperty` | `u32` colour mode: how vertex colours are used                       |
+| `NiZBufferProperty`     | `bool` depth test, `bool` depth write                                |
+| `NiSpecularProperty`    | `bool` specular highlights on or off                                 |
+| `NiShadeProperty`       | No master flag. `bool` smooth shading on or off                      |
+
+## Textures
+
+### NiImage
+
+A texture image.
+
+| Type          | Field                    | Meaning                                                           |
+|---------------|--------------------------|-------------------------------------------------------------------|
+| `bool`        | external                 | Whether the image is a separate file                              |
+| C string      | file name                | Only when external: the image file, a `.tga` name without a path |
+| `link`        | raw data                 | Only when not external: a block with the pixels                   |
+| `u32`         | preferred texture format | Pixel format the engine should convert the image to               |
+
+The game loads each file name only once and shares it between all images that name it.
+
+### NiFlipTextures
+
+An animation that steps through the images of a `NiTextureProperty`. In engine
+terms it is an *action*: the game starts running it as soon as the file is loaded, so no other block links to it.
+
+| Type   | Field        | Meaning                                                              |
+|--------|--------------|----------------------------------------------------------------------|
+| `u32`  | out of bound | What happens after the last image (engine enum, not mapped yet)     |
+| `f32`  | rate         | Playback speed                                                       |
+| `f32`  | start time   | When the animation starts                                           |
+| `f32`  | cycle time   | Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images |
+| `link` | textures     | The `NiTextureProperty` whose index it changes                      |
