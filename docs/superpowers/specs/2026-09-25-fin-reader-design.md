@@ -18,13 +18,15 @@ layout. Each block is a length-prefixed class name, a 4-byte pointer that serves
 block data. `Top Level Object` markers mark root objects and the file ends with an `End Of File` string. Blocks carry
 no size field, so an unknown class can't be skipped.
 
-`NiStream` in `NiMain.dll` handles the top-level objects (`NiStream::ms_pTopLevelObject`). Where the `Dweezil`
-header is checked and what version 23 changes are still open questions for the first step.
+`LoadComp.dll` registers the header with `NiStream::SetNewHeader("Dweezil ", 23)`. `NiStream::LoadHeader` then
+requires exactly that prefix and version, and skips the copyright lines that standard NetImmerse files have.
 
 The shipped files contain the standard NetImmerse classes (`NiNode`, `NiTriShape`, `NiLODNode`, `NiBillboardNode`,
-`NiLight`, `NiEnvMappedTriShape`, and several property and texture classes), Digital Domain classes (`DDUnit`,
-`DDActorSharedData`, `DDEnv`, `DDCorona`, `DDMUC`) and 3ds Max export leftovers (`Ni3dsColorAnimator`,
-`Ni3dsPropAnimExtraData`). This list comes from a string scan and gets confirmed by the parser.
+`NiLight`, `NiEnvMappedTriShape`, and several property and texture classes), Digital Domain classes from
+`LoadComp.dll` (`DDUnit`, `DDActorSharedData`, `DDEnv`, `DDCorona`) and 3ds Max animation classes from
+`NiAnimation.dll` (`Ni3dsAnimationNode`, `Ni3dsBone`, `Ni3dsSkin`, `Ni3dsMorphShape`, `Ni3dsColorAnimator`,
+`Ni3dsAlphaAnimator`, `Ni3dsPropAnimExtraData`). This list comes from a scan for length-prefixed names and gets
+confirmed by the parser.
 
 ## Architecture
 
@@ -39,7 +41,7 @@ All reader code lives in `Malumware.BetaTeam.Lib/IO/Fin/` and follows the `IO/Pa
 | `FinLinker`         | Resolves pointer references to blocks after parsing                                         |
 | `FinReader`         | Opens a file and returns a `FinFile`                                                        |
 | `FinFile`           | Header, blocks in file order, top-level objects                                             |
-| `Blocks/*`          | One record per class, with a static `Read` method                                           |
+| `Blocks/*`          | One class per engine class, named after it, with a `Load` method mirroring `LoadBinary`     |
 
 ### Parsing rules
 
@@ -47,9 +49,9 @@ All reader code lives in `Malumware.BetaTeam.Lib/IO/Fin/` and follows the `IO/Pa
 - Any other class name is looked up in the registry. An unknown class throws `InvalidDataException` with the class
   name and file offset. Continuing would produce garbage.
 - Bytes after `End Of File` throw `InvalidDataException`.
-- Block records mirror the engine's inheritance: `NiObject` → `NiObjectNET` (name, extra data, controllers) →
-  `NiAVObject` (transform, properties) → `NiNode`/`NiTriShape`, and so on. Shared base fields are read once, as the
-  engine's `LoadBinary` chain does.
+- Block classes mirror the engine's inheritance: `NiObject` (link ID, name, inline extra data) → `NiAVObject`
+  (transform, properties) → `NiNode`/`NiTriShape`, and so on. Each `Load` calls its base first, as the engine's
+  `LoadBinary` chain does, so shared fields are read in one place.
 - Values are stored exactly as in the file (rotation matrix in file order, scale as a single float). Conversions
   belong in exporters, so the dump stays faithful.
 
@@ -79,8 +81,9 @@ Order:
 3. `NiTriShape` and its geometry data, `NiEnvMappedTriShape`
 4. `NiLODNode`, `NiBillboardNode`, `NiLight`
 5. Properties, textures and extra data
-6. `DDUnit`, `DDActorSharedData`, `DDEnv`, `DDCorona`, `DDMUC`
-7. `Ni3dsColorAnimator` and any other controllers, as far as the stream requires
+6. `Ni3dsAnimationNode`, `Ni3dsBone`, `Ni3dsSkin`, `Ni3dsMorphShape`, `Ni3dsColorAnimator`, `Ni3dsAlphaAnimator`,
+   `Ni3dsPropAnimExtraData`, as far as the stream requires
+7. `DDUnit`, `DDActorSharedData`, `DDEnv`, `DDCorona`
 
 ## Dump command
 
