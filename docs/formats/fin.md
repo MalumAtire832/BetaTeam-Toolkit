@@ -37,4 +37,29 @@ Where the name "Dweezil" comes from isn't documented anywhere in the game.
 
 ## Blocks
 
-Documented in the following sections.
+After the header, the file is a list of blocks, one per object in the scene, written back to back. Each block starts
+with the name of its class:
+
+| Size       | Field      | Meaning                                  |
+|------------|------------|------------------------------------------|
+| `u32`      | length     | Length of the class name in bytes        |
+| length     | class name | ASCII, no terminator (`NiNode`, `DDUnit`) |
+| (varies)   | data       | The object's fields, as described below  |
+
+Two names aren't classes but markers:
+
+- `Top Level Object` marks the block that follows it as a root of the scene. The marker is followed by the real class
+  name, then that block's data. A file can have more than one root.
+- `End Of File` ends the list. The game stops reading there and ignores anything after it. Shipped files are
+  expected to end exactly at the marker.
+
+Blocks don't store their own size and there is no table of contents. The only way to find where a block ends is to
+read all of its fields, so a reader has to know every class that appears in a file. A single unknown class, or a
+single misread field, makes everything after it unreadable. This is how NetImmerse files worked before version 4,
+when a block size and a type table were added.
+
+### Strings
+
+Class names and markers are *sized strings*: a `u32` length followed by that many bytes. Strings inside a block
+(object names, file names) are *C strings* in the engine's terms. They use the same layout, but a length of `0`
+means there is no string at all, which is different from an empty one.
