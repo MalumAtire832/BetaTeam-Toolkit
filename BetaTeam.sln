@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # 
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sandbox", "Sandbox\Sandbox.csproj", "{71371614-519F-40D5-A260-9B05C856E624}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Malumware.BetaTeam.Lib", "Malumware.BetaTeam.Lib\Malumware.BetaTeam.Lib.csproj", "{71006C1E-7ED5-4EF2-87FC-79F18CA032FB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Malumware.Common", "Malumware.Common\Malumware.Common.csproj", "{A617A29B-B51B-450B-8013-1A90749A4392}"
@@ -17,10 +15,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{71371614-519F-40D5-A260-9B05C856E624}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{71371614-519F-40D5-A260-9B05C856E624}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{71371614-519F-40D5-A260-9B05C856E624}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{71371614-519F-40D5-A260-9B05C856E624}.Release|Any CPU.Build.0 = Release|Any CPU
 		{71006C1E-7ED5-4EF2-87FC-79F18CA032FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{71006C1E-7ED5-4EF2-87FC-79F18CA032FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{71006C1E-7ED5-4EF2-87FC-79F18CA032FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
