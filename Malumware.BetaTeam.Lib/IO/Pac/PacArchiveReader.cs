@@ -59,7 +59,7 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
 
             foreach (var (entry, data) in archive.Entries)
             {
-                var destPath = Path.Combine(directory, entry.ToLocalPath());
+                var destPath = entry.GetDestinationPath(directory);
                 Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                 File.WriteAllBytes(destPath, data);
 

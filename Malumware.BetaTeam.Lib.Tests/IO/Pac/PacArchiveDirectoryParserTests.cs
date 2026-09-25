@@ -160,6 +160,54 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
             Assert.Throws<InvalidDataException>(act);
         }
 
+        [Theory]
+        [InlineData("")]
+        [InlineData(".")]
+        [InlineData("..")]
+        [InlineData(@"..\EVIL.TXT")]
+        [InlineData("../EVIL.TXT")]
+        [InlineData("C:EVIL.TXT")]
+        public void Parse_ThrowsInvalidDataException_WhenFileNameIsUnsafe(string name)
+        {
+            // Arrange
+            var bytes = BuildDirectoryBytes(writer =>
+            {
+                writer.Write(1u);
+                PacTestData.WriteEntry(writer, name, offsetLow: 0u, size: 0u);
+                writer.Write(0u);
+            });
+            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+
+            // Act
+            var act = () => parser.Parse();
+
+            // Assert
+            Assert.Throws<InvalidDataException>(act);
+        }
+
+        [Theory]
+        [InlineData("..")]
+        [InlineData("SUB/..")]
+        public void Parse_ThrowsInvalidDataException_WhenDirectoryNameIsUnsafe(string name)
+        {
+            // Arrange
+            var bytes = BuildDirectoryBytes(writer =>
+            {
+                writer.Write(0u);
+                writer.Write(1u);
+                PacTestData.WriteName(writer, name);
+                writer.Write(0u);
+                writer.Write(0u);
+            });
+            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+
+            // Act
+            var act = () => parser.Parse();
+
+            // Assert
+            Assert.Throws<InvalidDataException>(act);
+        }
+
         private static byte[] BuildDirectoryBytes(Action<BinaryWriter> write)
         {
             using var stream = new MemoryStream();

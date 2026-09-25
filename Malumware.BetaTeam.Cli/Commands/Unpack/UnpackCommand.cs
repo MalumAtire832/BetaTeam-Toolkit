@@ -38,7 +38,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Unpack
 
                         foreach (var (entry, data) in archive.Entries)
                         {
-                            var destPath = Path.Combine(outputDir, entry.ToLocalPath());
+                            var destPath = entry.GetDestinationPath(outputDir);
                             Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                             File.WriteAllBytes(destPath, data);
                             if (entry.LastModified.HasValue)

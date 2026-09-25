@@ -21,5 +21,20 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
         {
             return FileName.Replace(PATH_SEPARATOR, Path.DirectorySeparatorChar);
         }
+
+        public string GetDestinationPath(string directory)
+        {
+            var root = Path.GetFullPath(directory);
+            var destination = Path.GetFullPath(Path.Combine(root, ToLocalPath()));
+
+            if (!destination.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Entry '{FileName}' resolves outside of the output directory"
+                );
+            }
+
+            return destination;
+        }
     }
 }

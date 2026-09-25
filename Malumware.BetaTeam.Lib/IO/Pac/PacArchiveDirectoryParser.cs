@@ -60,7 +60,18 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
                 );
             }
 
-            return Encoding.ASCII.GetString(bytes);
+            var name = Encoding.ASCII.GetString(bytes);
+
+            // The game splits paths on these characters, so a name containing one can never be looked up.
+            // Rejecting them also prevents unpacking from escaping the output directory.
+            if (name is "" or "." or ".." || name.IndexOfAny(['\\', '/', ':']) >= 0)
+            {
+                throw new InvalidDataException(
+                    $"Invalid name in archive directory: '{name}'"
+                );
+            }
+
+            return name;
         }
 
         private DateTime? ReadModifyTime()
