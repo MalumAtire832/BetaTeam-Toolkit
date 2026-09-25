@@ -15,8 +15,9 @@ namespace Malumware.BetaTeam.Lib.IO.Dds
             var byteRate = Reader.ReadUInt32();
             var blockAlign = Reader.ReadUInt16();
             var bitsPerSample = Reader.ReadUInt16();
+            var extraSize = Reader.ReadUInt16();
 
-            var header = new DdsAudioHeader(format, channels, sampleRate, byteRate, blockAlign, bitsPerSample);
+            var header = new DdsAudioHeader(format, channels, sampleRate, byteRate, blockAlign, bitsPerSample, extraSize);
 
             if (!header.IsValid)
             {

@@ -38,10 +38,13 @@ namespace Malumware.BetaTeam.Cli.Commands.Unpack
 
                         foreach (var (entry, data) in archive.Entries)
                         {
-                            var destPath = Path.Combine(outputDir, entry.FileName);
+                            var destPath = entry.GetDestinationPath(outputDir);
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                             File.WriteAllBytes(destPath, data);
                             if (entry.LastModified.HasValue)
+                            {
                                 File.SetLastWriteTimeUtc(destPath, entry.LastModified.Value);
+                            }
 
                             archiveTask.Increment(1);
                             totalTask.Increment(1);

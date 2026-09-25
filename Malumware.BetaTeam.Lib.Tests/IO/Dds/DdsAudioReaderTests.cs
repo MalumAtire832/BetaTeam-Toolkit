@@ -26,6 +26,22 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
         }
 
         [Fact]
+        public void Read_SkipsExtraFormatBytes_WhenExtraSizeIsSet()
+        {
+            // Arrange
+            var sampleData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+            var extraBytes = new byte[] { 0xEE, 0xEE };
+            var bytes = BuildDdsBytes(format: 1, sampleData: sampleData, extraBytes: extraBytes);
+
+            // Act
+            var audio = DdsAudioReader.Read("EXTRA", bytes);
+
+            // Assert
+            Assert.Equal(2, audio.Header.ExtraSize);
+            Assert.Equal(sampleData, audio.Data);
+        }
+
+        [Fact]
         public void Read_ThrowsInvalidDataException_WhenFormatIsUnsupported()
         {
             // Arrange
@@ -38,8 +54,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
             Assert.Throws<InvalidDataException>(act);
         }
 
-        private static byte[] BuildDdsBytes(ushort format, byte[] sampleData)
+        private static byte[] BuildDdsBytes(ushort format, byte[] sampleData, byte[]? extraBytes = null)
         {
+            extraBytes ??= [];
+
             using var ms = new MemoryStream();
             using var writer = new BinaryWriter(ms);
             writer.Write(format);       // format
@@ -48,6 +66,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
             writer.Write(176400u);      // byte rate
             writer.Write((ushort)4);    // block align
             writer.Write((ushort)16);   // bits per sample
+            writer.Write((ushort)extraBytes.Length); // extra size (cbSize)
+            writer.Write(extraBytes);
             writer.Write(sampleData);
             return ms.ToArray();
         }
