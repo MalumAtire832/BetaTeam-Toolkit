@@ -113,6 +113,7 @@ Rules for format work:
 |------------|----------------------------------------------------------------------------------------------|
 | PAC        | Verified and documented (`docs/formats/pac.md`)                                              |
 | DDS audio  | Verified and documented (`docs/formats/dds-audio.md`)                                        |
+| Locale TXT | Verified and documented (`docs/formats/string-tables.md`)                                    |
 | TGA        | Standard Truevision TGA                                                                      |
 | FIN models | Under investigation. Files start with `Dweezil 23\n`, followed by length-prefixed NetImmerse class names (`NiNode`, `NiTriShape`, ...) and their data. The engine reports "NetImmerse File Format, Version 7.0, With Modifications by Digital Domain". Goal: a C# parser and export to NIF files that NifSkope can open. |
 | DDF, PUZ   | Not yet investigated                                                                         |
