@@ -127,7 +127,7 @@ A node groups other objects. It has no geometry of its own.
 | `u32`     | sorter         | The address of the sorting object when the file was saved. The game ignores it         |
 | `bool`    | visual object  | Whether the node counts as something visible (inferred from the engine's name for it)   |
 | `link[]`  | children       | Child objects. A `0` is an empty slot                                                  |
-| `link[]`  | effects        | Dynamic effects (lights) that light this node's subtree                                |
+| `link[]`  | effects        | Lights (`NiLight`) that shine on this node's subtree                                   |
 
 ### NiTriShape
 
@@ -175,3 +175,56 @@ inferred from how other NetImmerse versions store them: the file layout is the s
 
 Stored exactly like `NiTriShape`. Going by the name, the class makes the engine draw the shape with an environment
 map (a reflection); the reading code doesn't show this.
+
+### NiLODNode
+
+A level-of-detail node: it shows one child at a time, picked by the camera's distance. It inherits from the abstract
+`NiSwitchNode`, whose fields come first.
+
+From `NiSwitchNode`:
+
+| Type   | Field                    | Meaning                                                        |
+|--------|--------------------------|----------------------------------------------------------------|
+| `i32`  | active child             | Index of the child that is currently shown                    |
+| `bool` | update only active child | Whether the engine updates only the shown child, not all of them |
+
+From `NiLODNode`:
+
+| Type                 | Field             | Meaning                                                                  |
+|----------------------|-------------------|--------------------------------------------------------------------------|
+| `i32`                | range count       | Number of ranges, one per child                                         |
+| count × (`f32`, `f32`, `vec3`) | ranges  | Near distance, far distance and the point distances are measured from   |
+| `bool`               | position in range | Stored by the engine; its effect isn't confirmed                        |
+
+The ranges are in the same order as the node's children: child 0 is shown when the camera is between the first
+range's near and far distance, and so on.
+
+### NiBillboardNode
+
+A node that turns to face the camera, used for sprites such as flares and trees.
+
+| Type  | Field | Meaning                                                                        |
+|-------|-------|--------------------------------------------------------------------------------|
+| `i32` | mode  | How the node turns (freely, or only around its up axis). Values not yet mapped |
+
+### NiLight
+
+A light. One class covers every kind of light; the light type field tells them apart. It doesn't hang in the node
+tree as a child: nodes list the lights that shine on them in their effects.
+
+| Type        | Field                | Meaning                                                               |
+|-------------|----------------------|-----------------------------------------------------------------------|
+| `vec3`      | location             | Position                                                              |
+| `vec3`      | direction            | Direction, for directional lights and spotlights                      |
+| `bool`      | light switch         | Whether the light is on                                               |
+| `f32`       | spot angle           | Cone angle of a spotlight                                             |
+| `f32`       | spot exponent        | How quickly a spotlight fades towards the edge of its cone            |
+| `f32`       | dimmer               | Brightness multiplier                                                 |
+| 3 × `f32`   | ambient colour       | Red, green, blue                                                      |
+| 3 × `f32`   | diffuse colour       | Red, green, blue                                                      |
+| 3 × `f32`   | specular colour      | Red, green, blue                                                      |
+| `f32`       | attenuation distance | Distance over which the light fades                                  |
+| `f32`       | attenuation curve    | Shape of the fade                                                     |
+| `bool`      | attenuation          | Whether the light fades with distance at all                         |
+| `i32`       | light type           | Kind of light. Values not yet mapped                                  |
+| `i32` + count × `u32` | illuminated nodes | Link IDs of the nodes it lights. The game reads and ignores them: the nodes' effect lists are what count |

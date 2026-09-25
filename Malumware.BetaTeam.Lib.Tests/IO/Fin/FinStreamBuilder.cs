@@ -89,6 +89,25 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
             return UInt32(linkId).CString(name).UInt32(0);
         }
 
+        // The NiAVObject part after NiObject: identity transform, no properties, no bounding volume
+        public FinStreamBuilder NiAVObjectFields(params uint[] properties)
+        {
+            return Byte(0)
+                .Floats(0, 0, 0)
+                .Floats(1, 0, 0, 0, 1, 0, 0, 0, 1)
+                .Floats(1)
+                .Floats(0, 0, 0)
+                .Refs(properties)
+                .UInt32(0)
+                .UInt32(0);
+        }
+
+        // The NiNode part after NiAVObject, with default sorting and visual object set
+        public FinStreamBuilder NiNodeFields(uint[] children, uint[] effects)
+        {
+            return UInt32(2).UInt32(0).Byte(1).Refs(children).Refs(effects);
+        }
+
         public byte[] ToArray()
         {
             _writer.Flush();

@@ -11,7 +11,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
 
         // Empty slots are stored as link ID 0
         public IReadOnlyList<FinRef<NiAVObject>> Children { get; private set; } = [];
-        public IReadOnlyList<FinRef<NiObject>> Effects { get; private set; } = [];
+        public IReadOnlyList<FinRef<NiLight>> Effects { get; private set; } = [];
 
         internal override void Load(FinBlockReader reader)
         {
@@ -20,7 +20,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
             Sorter = reader.ReadUInt32();
             IsVisualObject = reader.ReadByte() != 0;
             Children = reader.ReadRefList<NiAVObject>();
-            Effects = reader.ReadRefList<NiObject>();
+            Effects = reader.ReadRefList<NiLight>();
         }
     }
 }

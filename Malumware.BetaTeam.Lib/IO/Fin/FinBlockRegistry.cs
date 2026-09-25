@@ -40,7 +40,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             return new FinBlockRegistry()
                 .RegisterBlock<NiNode>()
                 .RegisterBlock<NiTriShape>()
-                .RegisterBlock<NiEnvMappedTriShape>();
+                .RegisterBlock<NiEnvMappedTriShape>()
+                .RegisterBlock<NiLODNode>()
+                .RegisterBlock<NiBillboardNode>()
+                .RegisterBlock<NiLight>();
         }
     }
 }
