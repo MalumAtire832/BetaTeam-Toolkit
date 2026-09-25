@@ -30,15 +30,19 @@ Licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## File Formats
 
+Detailed format descriptions live in [`docs/`](docs/README.md).
+
 ### PAC Archives
-PAC files are flat packed archives used by LEGO Alpha Team, files are stored contiguously and uncompressed.
-The header is 20 bytes (`PACK` magic, archive size, payload offset, file count), followed by a variable-length directory
-of null-terminated filename entries, each carrying an absolute offset, file size, and Windows FILETIME timestamp.
+PAC files are uncompressed archives used by LEGO Alpha Team, designed to be memory-mapped by the game.
+A 16-byte header (`PACK` magic, archive size, directory size) is followed by a recursive directory of
+null-terminated file names, each carrying a 64-bit offset, file size, and Windows FILETIME timestamp.
+See [docs/formats/pac.md](docs/formats/pac.md).
 
 ### DDS Audio
-`.DDS` files are a proprietary PCM audio format whose 16-byte header is layout-identical to a WAV `fmt` chunk (format
-tag, channel count, sample rate, byte rate, block align, bits per sample).
+`.DDS` files are raw PCM audio preceded by an 18-byte Windows `WAVEFORMATEX` header (format tag, channel count,
+sample rate, byte rate, block align, bits per sample, extra size).
 The converter wraps the raw PCM data in a standard RIFF/WAVE envelope to produce a valid `.wav` file.
+See [docs/formats/dds-audio.md](docs/formats/dds-audio.md).
 
 
 ## CLI
