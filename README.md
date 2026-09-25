@@ -87,3 +87,17 @@ betateam convert dds wav /game/extracted/audio /game/wav
 betateam convert dds wav /game/extracted/audio /game/wav --mask *.DDS
 betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 ```
+
+## Reverse Engineering Setup
+
+The formats are researched by reading the game's own code in [Ghidra](https://ghidra-sre.org/). To set up a local
+workspace (the gitignored `Research/` folder):
+
+```bash
+scripts/setup-research.sh <GAME_DIRECTORY> [GHIDRA_INSTALL_DIRECTORY]
+```
+
+The script links the game install, unpacks its archives, runs the initial Ghidra analysis of every game binary, and
+registers a [pyghidra-mcp](https://github.com/clearbluejar/pyghidra-mcp) server so AI agents like Claude Code can
+query the analysis. It needs the .NET SDK, [uv](https://docs.astral.sh/uv/) and Ghidra (tested with 12.0.4).
+Guidance for agents working in this repository is in [AGENTS.md](AGENTS.md).
