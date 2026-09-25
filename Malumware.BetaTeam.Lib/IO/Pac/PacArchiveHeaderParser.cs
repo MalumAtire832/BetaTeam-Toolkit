@@ -11,11 +11,10 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
         {
             var magic = Reader.ReadBytes(4);
             var size = Reader.ReadUInt32();
-            Seek(4, SeekOrigin.Current); // Reserved
-            var payloadOffset = Reader.ReadUInt32();
-            var fileCount = Reader.ReadUInt32();
+            Seek(4, SeekOrigin.Current); // Unknown, always 0 and ignored by the game
+            var directorySize = Reader.ReadUInt32();
 
-            var header = new PacArchiveHeader(magic, size, payloadOffset, fileCount);
+            var header = new PacArchiveHeader(magic, size, directorySize);
 
             if (!header.IsValid)
             {

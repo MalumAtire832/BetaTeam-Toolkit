@@ -10,7 +10,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
         {
             // Arrange
             var magic = Encoding.ASCII.GetBytes("PACK");
-            var header = new PacArchiveHeader(magic, archiveSize: 0, payloadOffset: 0, fileCount: 0);
+            var header = new PacArchiveHeader(magic, archiveSize: 0, directorySize: 0);
 
             // Act
             var isValid = header.IsValid;
@@ -28,7 +28,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
         {
             // Arrange
             var magic = Encoding.ASCII.GetBytes(magicAscii);
-            var header = new PacArchiveHeader(magic, archiveSize: 0, payloadOffset: 0, fileCount: 0);
+            var header = new PacArchiveHeader(magic, archiveSize: 0, directorySize: 0);
 
             // Act
             var isValid = header.IsValid;

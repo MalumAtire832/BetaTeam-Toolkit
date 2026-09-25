@@ -17,25 +17,35 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
             var fileName = Path.GetFileNameWithoutExtension(filePath);
             
             using var headerParser = new PacArchiveHeaderParser(streamFactory());
-            using var entryParser = new PacArchiveEntryParser(streamFactory());
+            using var directoryParser = new PacArchiveDirectoryParser(streamFactory());
             using var dataParser = new PacArchiveEntryDataParser(streamFactory());
 
             var header = headerParser.Parse();
-            var entries = new Dictionary<PacArchiveEntry, byte[]>((int)header.FileCount);
-            if (header.FileCount <= 0)
-            {
-                return new PacArchive(fileName, header, entries);
-            }
 
-            entryParser.Seek(PacArchiveHeader.SIZE, SeekOrigin.Begin);
-            for (var i = 0; i < header.FileCount; i++)
+            directoryParser.Seek(PacArchiveHeader.SIZE, SeekOrigin.Begin);
+            var directory = directoryParser.Parse();
+
+            var entries = new Dictionary<PacArchiveEntry, byte[]>(directory.Count);
+            foreach (var entry in directory)
             {
-                var entry = entryParser.Parse();
+                if (IsSelfReference(entry, filePath))
+                {
+                    continue;
+                }
+
                 var data = dataParser.Parse(entry);
                 entries.Add(entry, data);
             }
 
             return new PacArchive(fileName, header, entries);
+        }
+
+        // The original packing tool recorded some archives inside themselves as an empty entry,
+        // most likely because the half-written output file was sitting in the directory being packed.
+        private static bool IsSelfReference(PacArchiveEntry entry, string filePath)
+        {
+            return entry.Size == 0
+                && string.Equals(entry.FileName, Path.GetFileName(filePath), StringComparison.OrdinalIgnoreCase);
         }
 
         private static MemoryMappedViewStream CreateStream(MemoryMappedFile mmf)
@@ -49,7 +59,8 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
 
             foreach (var (entry, data) in archive.Entries)
             {
-                var destPath = Path.Combine(directory, entry.FileName);
+                var destPath = Path.Combine(directory, entry.ToLocalPath());
+                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                 File.WriteAllBytes(destPath, data);
 
                 if (entry.LastModified.HasValue)
