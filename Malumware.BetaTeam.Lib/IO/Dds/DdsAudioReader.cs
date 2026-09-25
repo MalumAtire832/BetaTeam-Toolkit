@@ -14,7 +14,7 @@ namespace Malumware.BetaTeam.Lib.IO.Dds
             using var headerStream = new MemoryStream(bytes, 0, DdsAudioHeader.SIZE);
             using var parser = new DdsAudioHeaderParser(headerStream);
             var header = parser.Parse();
-            var data = bytes[DdsAudioHeader.SIZE..];
+            var data = bytes[(DdsAudioHeader.SIZE + header.ExtraSize)..];
             return new DdsAudio(name, header, data);
         }
     }

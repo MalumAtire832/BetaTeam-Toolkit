@@ -30,6 +30,29 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
             Assert.Equal(176400u, header.ByteRate);
             Assert.Equal(4, header.BlockAlign);
             Assert.Equal(16, header.BitsPerSample);
+            Assert.Equal(0, header.ExtraSize);
+        }
+
+        [Fact]
+        public void Parse_ConsumesFullWaveFormatExHeader()
+        {
+            // Arrange
+            var bytes = BuildHeaderBytes(
+                format: 1,          // PCM
+                channels: 1,
+                sampleRate: 22050,
+                byteRate: 44100,
+                blockAlign: 2,
+                bitsPerSample: 16
+            );
+            var stream = new MemoryStream(bytes);
+            using var parser = new DdsAudioHeaderParser(stream);
+
+            // Act
+            parser.Parse();
+
+            // Assert
+            Assert.Equal(DdsAudioHeader.SIZE, stream.Position);
         }
 
         [Fact]
@@ -66,6 +89,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
             writer.Write(byteRate);
             writer.Write(blockAlign);
             writer.Write(bitsPerSample);
+            writer.Write((ushort)0);    // extra size (cbSize)
             return ms.ToArray();
         }
     }
