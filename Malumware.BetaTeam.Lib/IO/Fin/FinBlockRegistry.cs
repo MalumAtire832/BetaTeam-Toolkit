@@ -37,8 +37,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
 
         private static FinBlockRegistry CreateDefault()
         {
-            // Class group tasks add their registrations here
-            return new FinBlockRegistry();
+            return new FinBlockRegistry()
+                .RegisterBlock<NiNode>();
         }
     }
 }

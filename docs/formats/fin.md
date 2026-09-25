@@ -72,3 +72,59 @@ IDs themselves mean nothing once loaded; they only have to be unique within a fi
 
 Because a block can refer to one that comes later in the file, the game reads in two passes: first every block, then
 it replaces each stored ID with the object it belongs to. A reader has to do the same.
+
+## Classes
+
+Each class reads the fields of its parent class first, then its own. The tables below list only a class's own
+fields, in file order. Types: `u8`/`u32` unsigned integers, `f32` a 32-bit float, `bool` a `u8` that is `0` or `1`,
+`vec3` three `f32` (x, y, z), `link` a `u32` link ID, `link[]` a `u32` count followed by that many links.
+
+### NiObject
+
+The base of every block.
+
+| Type      | Field      | Meaning                                                                           |
+|-----------|------------|-----------------------------------------------------------------------------------|
+| `u32`     | link ID    | This object's ID, used by other blocks to refer to it (see [Links](#links))       |
+| C string  | name       | The object's name, as set in 3ds Max (`Box01`, `Dummy Object`). Often absent      |
+| `u32`     | extra data | Number of extra data entries that follow                                          |
+| (varies)  | entries    | Each one: a C string with the extra data's class name, then that class's fields   |
+
+In later NetImmerse versions the name and extra data moved to a class called `NiObjectNET`. Here they are part of
+`NiObject` itself. Extra data is also stored inside its owner, not as blocks of its own, so it has no link ID. An
+entry without a class name is read as plain `NiExtraData`.
+
+### NiAVObject
+
+Parent of everything that has a place in the scene: nodes, shapes, lights.
+
+| Type      | Field               | Meaning                                                                        |
+|-----------|---------------------|--------------------------------------------------------------------------------|
+| `bool`    | app culled          | Hidden by the game ("application culled"), as opposed to culled because it's off-screen |
+| `vec3`    | translation         | Position relative to the parent                                                |
+| 9 × `f32` | rotation            | 3×3 rotation matrix relative to the parent, as three groups of three floats    |
+| `f32`     | scale               | Uniform scale relative to the parent                                           |
+| `vec3`    | velocity            | Local velocity                                                                 |
+| `link[]`  | properties          | Render properties (material, texture, alpha, ...) that apply to this object and everything below it |
+| `u32`     | collision propagate | How collision tests treat this object's children. Which value means what hasn't been confirmed |
+| `u32`     | has bounding volume | Non-zero if a collision bounding volume follows                                |
+
+The transform is local: an object's position, rotation and scale are relative to its parent node, and vertices are
+relative to the shape that holds them. Where an object ends up in the world is the combination of every transform
+from the root down to it. A converter that copies vertices without applying those transforms puts every part at the
+origin in its own orientation.
+
+Whether the three groups of the rotation matrix are rows or columns in the engine's maths is still to be confirmed.
+Readers should keep the nine values in file order and decide when converting.
+
+### NiNode
+
+A node groups other objects. It has no geometry of its own.
+
+| Type      | Field          | Meaning                                                                                |
+|-----------|----------------|----------------------------------------------------------------------------------------|
+| `u32`     | sorting mode   | Whether the children are sorted (for transparency) before drawing: `0` on, `1` off, `2` default |
+| `u32`     | sorter         | The address of the sorting object when the file was saved. The game ignores it         |
+| `bool`    | visual object  | Whether the node counts as something visible (inferred from the engine's name for it)   |
+| `link[]`  | children       | Child objects. A `0` is an empty slot                                                  |
+| `link[]`  | effects        | Dynamic effects (lights) that light this node's subtree                                |
