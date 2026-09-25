@@ -24,26 +24,27 @@ to DirectX-era APIs.
 
 Almost all game data ships inside eight `.pac` archives next to the executable:
 
-| Archive         | Contents                                                           |
-|-----------------|--------------------------------------------------------------------|
-| `Ambient.pac`   | Ambient/background audio (`.DDS`)                                  |
-| `Audio.pac`     | Sound effects and voice lines (`.DDS`)                             |
-| `Bhvr.pac`      | Per-object behaviour code, as Windows DLLs (`.DLL`)                |
-| `Etc.pac`       | Fonts (`.DDF` + `.TGA` glyph pages), puzzles (`.PUZ`), text files  |
-| `Fin.pac`       | 3D models and scenes (`.FIN`)                                      |
-| `LMap.pac`      | Textures, most likely lightmaps given the `LM` in names (`.TGA`)   |
-| `Locale_en.pac` | English voice-over audio (`.DDS`) and localised text              |
-| `Map.pac`       | Textures (`.TGA`)                                                  |
+| Archive         | Contents                                                          |
+|-----------------|-------------------------------------------------------------------|
+| `Ambient.pac`   | Ambient/background audio (`.DDS`)                                 |
+| `Audio.pac`     | Sound effects and voice lines (`.DDS`)                            |
+| `Bhvr.pac`      | Per-object behaviour code, as Windows DLLs (`.DLL`)               |
+| `Etc.pac`       | Fonts (`.DDF` + `.TGA` glyph pages), puzzles (`.PUZ`), text files |
+| `Fin.pac`       | 3D models and scenes (`.FIN`)                                     |
+| `LMap.pac`      | Textures, most likely lightmaps given the `LM` in names (`.TGA`)  |
+| `Locale_en.pac` | English voice-over audio (`.DDS`) and string tables (`.TXT`)      |
+| `Map.pac`       | Textures (`.TGA`)                                                 |
 
 ## Formats
 
-| Format                            | Status                        |
-|-----------------------------------|-------------------------------|
-| [PAC archives](formats/pac.md)    | Documented, verified          |
-| [DDS audio](formats/dds-audio.md) | Documented, verified          |
-| TGA textures                      | Standard Truevision TGA       |
-| FIN models                        | Under investigation           |
-| DDF fonts, PUZ puzzles            | Not yet investigated          |
+| Format                                    | Status                  |
+|-------------------------------------------|-------------------------|
+| [PAC archives](formats/pac.md)            | Documented, verified    |
+| [DDS audio](formats/dds-audio.md)         | Documented, verified    |
+| [String tables](formats/string-tables.md) | Documented, verified    |
+| TGA textures                              | Standard Truevision TGA |
+| FIN models                                | Under investigation     |
+| DDF fonts, PUZ puzzles                    | Not yet investigated    |
 
 ## Conventions
 

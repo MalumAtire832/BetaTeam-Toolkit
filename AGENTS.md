@@ -31,7 +31,7 @@ The game files are proprietary and must never be committed. Only the owner's leg
 
 - `Research/` is gitignored and is the local workspace for everything derived from the game.
 - Tests that need the real files use `[GameDataFact]` instead of `[Fact]`. They find the game through the
-  `BETATEAM_GAME_DIR` environment variable or `Research/game`, and skip automatically when it's missing.
+  `ALPHATEAM_GAME_DIR` environment variable or `Research/game`, and skip automatically when it's missing.
 - Never copy game data, decompiled code or disassembly into tracked files, including test fixtures. Unit tests build
   their input buffers in code.
 
@@ -113,6 +113,7 @@ Rules for format work:
 |------------|----------------------------------------------------------------------------------------------|
 | PAC        | Verified and documented (`docs/formats/pac.md`)                                              |
 | DDS audio  | Verified and documented (`docs/formats/dds-audio.md`)                                        |
+| Locale TXT | Verified and documented (`docs/formats/string-tables.md`)                                    |
 | TGA        | Standard Truevision TGA                                                                      |
 | FIN models | Under investigation. Files start with `Dweezil 23\n`, followed by length-prefixed NetImmerse class names (`NiNode`, `NiTriShape`, ...) and their data. The engine reports "NetImmerse File Format, Version 7.0, With Modifications by Digital Domain". Goal: a C# parser and export to NIF files that NifSkope can open. |
 | DDF, PUZ   | Not yet investigated                                                                         |
