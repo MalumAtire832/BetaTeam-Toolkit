@@ -33,6 +33,31 @@ from the code is marked *inferred*.
 expands every array. Given a directory and `-o`, it dumps every file into its own `.txt` or `.json`. The JSON nests as
 deep as the scene tree, which can go past the default depth limit of some JSON libraries.
 
+### Converting to glTF
+
+`betateam convert fin gltf <input directory> <output directory>` writes each FIN file as a binary glTF (`.glb`) that
+Blender can import:
+
+- Every object in the tree becomes a glTF node with its own local transform, so parts end up where the file places
+  them. A root node named after the file turns the scene from Z-up (3ds Max) to glTF's Y-up; the values below it
+  are the file's own. Blender turns it back on import: world positions match the file, but the objects' local values
+  in Blender are Blender's conversion of them (a rotation about Z shows as one about −Y).
+- Shapes become meshes with their vertex positions, normals, colours and first two texture coordinates. Normals are
+  scaled to unit length, which glTF requires; a shape with a zero normal gets none and Blender computes its own.
+  Every shape gets the same plain white material until textures are converted. A `DDCorona` has no triangles, so
+  its vertices are written as points.
+- A `NiLODNode` keeps only its most detailed level: the child whose range starts closest to the camera. `--all-lods`
+  keeps every level. Each level's node carries its index into the ranges as `lodLevel`.
+- Lights aren't part of the tree (see [NiLight](#nilight)), so they are placed under the root as empty nodes with
+  their own transform.
+- Every other field of an object goes into its node's *extras*, which Blender shows under *Object Properties →
+  Custom Properties*: names, flags, bounding volumes, extra data, and its properties written out in full. Blocks
+  outside the tree, such as `DDActorSharedData` and texture animations, are in the root node's `blocks`, keyed by
+  link ID; other extras refer to them as `{"ref": "0x...", "class": ...}`. The third texture coordinate component
+  is kept as `TextureCoordinateW` on shapes where it isn't always `0`.
+
+Animation, skinning and morphing aren't converted yet; their data is in the extras.
+
 ## Header
 
 A FIN file starts with one line of text:
@@ -134,7 +159,9 @@ from the root down to it. A converter that copies vertices without applying thos
 origin in its own orientation.
 
 Whether the three groups of the rotation matrix are rows or columns in the engine's maths is still to be confirmed.
-Readers should keep the nine values in file order and decide when converting.
+Readers should keep the nine values in file order and decide when converting. The glTF converter takes each group as a
+row of the matrix that rotates a point as *R · v*, which is how later NetImmerse and Gamebryo versions store it. That
+it holds for this game is *inferred*, not yet confirmed in its code.
 
 ### NiNode
 

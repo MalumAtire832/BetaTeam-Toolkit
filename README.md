@@ -92,6 +92,30 @@ betateam convert dds wav /game/extracted/audio /game/wav --mask *.DDS
 betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 ```
 
+### `convert fin gltf` — Convert FIN models to glTF
+
+Converts `.FIN` models to binary glTF (`.glb`) for importing into Blender. The node hierarchy and each object's
+transform are kept, and the fields that aren't geometry show up as custom properties.
+See [docs/formats/fin.md](docs/formats/fin.md#converting-to-gltf).
+
+```
+betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--all-lods]
+```
+
+| Argument / Option  | Description                                                    | Default |
+|--------------------|----------------------------------------------------------------|---------|
+| `INPUT_DIRECTORY`  | Directory containing `.FIN` files                              | —       |
+| `OUTPUT_DIRECTORY` | Directory to write `.glb` files into                           | —       |
+| `-m`, `--mask`     | File glob pattern                                              | `*.FIN` |
+| `--all-lods`       | Keep every level of detail instead of only the most detailed   | off     |
+
+Examples:
+
+```bash
+betateam convert fin gltf /game/extracted/Fin /game/gltf
+betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --all-lods
+```
+
 ## Reverse Engineering Setup
 
 The formats are researched by reading the game's own code in [Ghidra](https://ghidra-sre.org/). To set up a local

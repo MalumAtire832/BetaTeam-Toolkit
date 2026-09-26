@@ -115,7 +115,7 @@ Rules for format work:
 | DDS audio  | Verified and documented (`docs/formats/dds-audio.md`)                                        |
 | Locale TXT | Verified and documented (`docs/formats/string-tables.md`)                                    |
 | TGA        | Standard Truevision TGA                                                                      |
-| FIN models | Reading verified and documented (`docs/formats/fin.md`); every shipped file parses. Inspect with `betateam fin dump`. Export: glTF for Blender (#6), NIF for NifSkope (#5). |
+| FIN models | Reading verified and documented (`docs/formats/fin.md`); every shipped file parses. Inspect with `betateam fin dump`. Export to glTF for Blender with `betateam convert fin gltf` (#6; rotation convention inferred, not yet confirmed in code), NIF for NifSkope (#5). |
 | DDF, PUZ   | Not yet investigated                                                                         |
 
 ## Git and pull requests
