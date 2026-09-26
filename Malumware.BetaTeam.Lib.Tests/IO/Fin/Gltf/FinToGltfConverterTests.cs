@@ -12,10 +12,11 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         private const uint PRESENT = 0x0A96AC58;    // Optional arrays are preceded by a non-zero address when present
 
         private static FinStreamBuilder Node(
-            FinStreamBuilder builder, uint linkId, string? name, uint[] children, uint[]? effects = null, uint[]? properties = null)
+            FinStreamBuilder builder, uint linkId, string? name, uint[] children, uint[]? effects = null, uint[]? properties = null,
+            bool hidden = false)
         {
             return builder.SizedString("NiNode").NiObject(linkId, name)
-                .NiAVObjectFields(properties ?? [])
+                .NiAVObjectFields(hidden, properties ?? [])
                 .NiNodeFields(children, effects ?? []);
         }
 
@@ -91,9 +92,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                 .Floats(10, 0.5f);
         }
 
-        private static ModelRoot Convert(byte[] bytes, bool allLevelsOfDetail = false)
+        private static ModelRoot Convert(byte[] bytes, bool includeAllLevelsOfDetail = false, bool includeHidden = false)
         {
-            var glb = new FinToGltfConverter(allLevelsOfDetail).ToGlb(FinReader.Read("TEST", bytes));
+            var glb = new FinToGltfConverter(includeAllLevelsOfDetail, includeHidden).ToGlb(FinReader.Read("TEST", bytes));
             return ModelRoot.ParseGLB(glb, new ReadSettings { Validation = ValidationMode.Strict });
         }
 
@@ -323,10 +324,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         }
 
         [Fact]
-        public void ToGlb_WritesEveryLevel_WhenAllLevelsOfDetailIsSet()
+        public void ToGlb_WritesEveryLevel_WhenIncludeAllLevelsOfDetailIsSet()
         {
             // Act
-            var model = Convert(LodFile(), allLevelsOfDetail: true);
+            var model = Convert(LodFile(), includeAllLevelsOfDetail: true);
 
             // Assert
             var lod = Assert.Single(SceneRoot(model).VisualChildren);
@@ -355,15 +356,57 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         [InlineData(122500, true, new[] { "LOD_Arm", "Arm" })]
         [InlineData(0, false, new[] { "LOD_Arm", "Arm" })]
         public void ToGlb_LeavesOutStandIns_WhenUnitSwapsThemInOnlyAtADistance(
-            float lodDistanceSquared, bool allLevelsOfDetail, string[] expected)
+            float lodDistanceSquared, bool includeAllLevelsOfDetail, string[] expected)
         {
             // Act
-            var model = Convert(StandInFile(lodDistanceSquared), allLevelsOfDetail);
+            var model = Convert(StandInFile(lodDistanceSquared), includeAllLevelsOfDetail);
 
             // Assert
             var unit = Assert.Single(SceneRoot(model).VisualChildren);
             var body = Assert.Single(unit.VisualChildren);
             Assert.Equal(expected, body.VisualChildren.Select(e => e.Name));
+        }
+
+        // A node "Effects" the game loads hidden, holding a shape, next to a visible "Body"; "Glow" is a hidden scene root
+        private static byte[] HiddenFile()
+        {
+            var builder = Node(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", [0x20, 0x30]);
+            builder = Node(builder, 0x20, "Body", []);
+            builder = Node(builder, 0x30, "Effects", [0x40], hidden: true);
+            builder = Shape(builder, 0x40, "Flare");
+
+            return Node(builder.TopLevel(), 0x50, "Glow", [], hidden: true).EndOfFile().ToArray();
+        }
+
+        [Fact]
+        public void ToGlb_LeavesOutHiddenNodesAndWhatTheyHold_ByDefault()
+        {
+            // Act
+            var model = Convert(HiddenFile());
+
+            // Assert
+            var root = Assert.Single(SceneRoot(model).VisualChildren);
+            Assert.Equal("Root", root.Name);
+            Assert.Equal(["Body"], root.VisualChildren.Select(e => e.Name));
+            Assert.Empty(model.LogicalMeshes);
+        }
+
+        [Fact]
+        public void ToGlb_WritesHiddenNodes_WhenIncludeHiddenIsSet()
+        {
+            // Act
+            var model = Convert(HiddenFile(), includeHidden: true);
+
+            // Assert
+            var sceneRoot = SceneRoot(model);
+            Assert.Equal(["Root", "Glow"], sceneRoot.VisualChildren.Select(e => e.Name));
+            var effects = sceneRoot.VisualChildren
+                .First()
+                .VisualChildren
+                .Last();
+            Assert.Equal("Effects", effects.Name);
+            Assert.True(Extras(effects)["AppCulled"]!.GetValue<bool>());
+            Assert.Equal("Flare", Assert.Single(effects.VisualChildren).Name);
         }
 
         [Fact]

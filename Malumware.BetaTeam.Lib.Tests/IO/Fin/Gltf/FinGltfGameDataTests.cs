@@ -38,13 +38,13 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             {
                 var (name, data) = files[i];
                 var file = FinReader.Read(name, data);
-                foreach (var allLevelsOfDetail in new[] { false, true })
+                foreach (var includeAll in new[] { false, true })
                 {
                     try
                     {
-                        var glb = new FinToGltfConverter(allLevelsOfDetail).ToGlb(file);
+                        var glb = new FinToGltfConverter(includeAll, includeAll).ToGlb(file);
                         var model = ModelRoot.ParseGLB(glb, settings);
-                        if (!allLevelsOfDetail)
+                        if (!includeAll)
                         {
                             meshesWithoutNormals += model.LogicalMeshes
                                 .Count(mesh => mesh.Primitives.Any(e => e.GetVertexAccessor("NORMAL") is null));
@@ -52,7 +52,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                     }
                     catch (Exception e)
                     {
-                        failures.Add($"{name} (all LODs: {allLevelsOfDetail}): {e.GetType().Name}: {e.Message}");
+                        failures.Add($"{name} (include all: {includeAll}): {e.GetType().Name}: {e.Message}");
                     }
                 }
             }
@@ -68,9 +68,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             Assert.Empty(failures);
         }
 
-        // With every level of detail kept, no geometry may be lost: each shape or corona with vertices gets its own mesh
+        // With every level of detail and every hidden node kept, no geometry may be lost: each shape or corona with
+        // vertices gets its own mesh
         [GameDataFact]
-        public void ToGlb_WritesEveryShape_WhenAllLevelsOfDetailIsSet()
+        public void ToGlb_WritesEveryShape_WhenEverythingIsIncluded()
         {
             // Arrange
             var failures = new List<string>();
@@ -82,7 +83,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                 var shapes = file.Objects
                     .OfType<NiTriBasedGeom>()
                     .Count(e => e.Vertices is { Length: > 0 });
-                var model = new FinToGltfConverter(allLevelsOfDetail: true).ToModel(file);
+                var model = new FinToGltfConverter(includeAllLevelsOfDetail: true, includeHidden: true).ToModel(file);
                 if (model.LogicalMeshes.Count != shapes)
                 {
                     failures.Add($"{name}: {shapes} shapes with vertices, but {model.LogicalMeshes.Count} meshes");

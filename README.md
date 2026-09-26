@@ -113,21 +113,22 @@ up as custom properties.
 See [docs/formats/fin.md](docs/formats/fin.md#converting-to-gltf).
 
 ```
-betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--all-lods]
+betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--include-all-lods] [--include-hidden]
 ```
 
-| Argument / Option  | Description                                                    | Default |
-|--------------------|----------------------------------------------------------------|---------|
-| `INPUT_DIRECTORY`  | Directory containing `.FIN` files                              | —       |
-| `OUTPUT_DIRECTORY` | Directory to write `.glb` files into                           | —       |
-| `-m`, `--mask`     | File glob pattern                                              | `*.FIN` |
-| `--all-lods`       | Keep every level of detail instead of only the most detailed, including characters' flat `LOD_` stand-ins | off     |
+| Argument / Option    | Description                                                                                               | Default |
+|----------------------|-----------------------------------------------------------------------------------------------------------|---------|
+| `INPUT_DIRECTORY`    | Directory containing `.FIN` files                                                                         | —       |
+| `OUTPUT_DIRECTORY`   | Directory to write `.glb` files into                                                                      | —       |
+| `-m`, `--mask`       | File glob pattern                                                                                         | `*.FIN` |
+| `--include-all-lods` | Keep every level of detail instead of only the most detailed, including characters' flat `LOD_` stand-ins | off     |
+| `--include-hidden`   | Keep the objects the game loads hidden, such as effects, glows and lights it switches on when needed      | off     |
 
 Examples:
 
 ```bash
 betateam convert fin gltf /game/extracted/Fin /game/gltf
-betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --all-lods
+betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --include-all-lods --include-hidden
 ```
 
 ### `fin dump` — Inspect FIN models

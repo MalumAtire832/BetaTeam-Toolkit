@@ -41,7 +41,7 @@ namespace Malumware.BetaTeam.Cli
                         fin.AddCommand<FinToGltfCommand>("gltf")
                             .WithDescription("Convert FIN model files in a directory to binary glTF (.glb), for importing into Blender.")
                             .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf")
-                            .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf", "--mask", "U*.FIN", "--all-lods");
+                            .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf", "--mask", "U*.FIN", "--include-all-lods", "--include-hidden");
                     });
                 });
 

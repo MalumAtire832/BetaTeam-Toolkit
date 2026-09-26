@@ -18,9 +18,13 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
         [DefaultValue("*.FIN")]
         public required string Mask { get; init; }
 
-        [CommandOption("--all-lods")]
+        [CommandOption("--include-all-lods")]
         [Description("Write every level of detail instead of only the most detailed one, including characters' LOD_ stand-ins")]
-        public bool AllLevelsOfDetail { get; init; }
+        public bool IncludeAllLevelsOfDetail { get; init; }
+
+        [CommandOption("--include-hidden")]
+        [Description("Write the nodes the game loads hidden, such as effects, glows and lights it switches on when needed")]
+        public bool IncludeHidden { get; init; }
 
         public override ValidationResult Validate()
         {

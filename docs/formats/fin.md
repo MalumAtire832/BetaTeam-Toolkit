@@ -46,11 +46,17 @@ Blender can import:
   scaled to unit length, which glTF requires; a shape with a zero normal gets none and Blender computes its own.
   Every shape gets the same plain white material until textures are converted. A `DDCorona` has no triangles, so
   its vertices are written as points.
-- A `NiLODNode` keeps only its most detailed level: the child whose range starts closest to the camera. `--all-lods`
-  keeps every level. Each level's node carries its index into the ranges as `lodLevel`.
+- A `NiLODNode` keeps only its most detailed level: the child whose range starts closest to the camera.
+  `--include-all-lods` keeps every level. Each level's node carries its index into the ranges as `lodLevel`.
 - Characters' flat `LOD_` stand-ins (see [Distant characters](#distant-characters)) are left out the same way, and
-  `--all-lods` keeps them. They then overlap the skinned meshes they replace, and face whichever way the file stores
-  them, since only the game turns them towards the camera.
+  `--include-all-lods` keeps them. They then overlap the skinned meshes they replace, and face whichever way the file
+  stores them, since only the game turns them towards the camera.
+- Objects whose *app culled* flag is set (see [NiAVObject](#niavobject)) are left out with everything below them,
+  because the game loads them hidden. They're effects, glows and lights, such as `Effect group` planes, `DDCorona`
+  glows, explosion geometry and lights named `... On`; presumably the game's code shows them when they're needed.
+  `--include-hidden` keeps them, and their extras still show the flag. glTF has no hidden state that Blender's
+  importer reads, so they then show as visible. The flat `LOD_` stand-ins aren't marked this way: the game hides
+  them while it runs.
 - Lights aren't part of the tree (see [NiLight](#nilight)), so they are placed under the root as empty nodes with
   their own transform.
 - Every other field of an object goes into its node's *extras*, which Blender shows under *Object Properties →

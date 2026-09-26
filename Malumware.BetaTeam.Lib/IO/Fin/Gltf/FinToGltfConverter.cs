@@ -23,11 +23,15 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
         // By default only the most detailed level of each NiLODNode is written, and none of the flat "LOD_" stand-ins
         // that characters show from afar, so the levels don't overlap
-        public bool AllLevelsOfDetail { get; }
+        public bool IncludeAllLevelsOfDetail { get; }
+        // By default nodes the game loads hidden are left out, with everything below them: effects, glows and lights
+        // that the game's code shows when they're needed
+        public bool IncludeHidden { get; }
 
-        public FinToGltfConverter(bool allLevelsOfDetail = false)
+        public FinToGltfConverter(bool includeAllLevelsOfDetail = false, bool includeHidden = false)
         {
-            AllLevelsOfDetail = allLevelsOfDetail;
+            IncludeAllLevelsOfDetail = includeAllLevelsOfDetail;
+            IncludeHidden = includeHidden;
         }
 
         public byte[] ToGlb(FinFile file)
@@ -44,7 +48,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
         internal ModelRoot ToModel(FinFile file)
         {
-            return new Export(file, AllLevelsOfDetail).Run();
+            return new Export(file, IncludeAllLevelsOfDetail, IncludeHidden).Run();
         }
 
         internal static string Describe(NiObject block)
@@ -56,7 +60,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         private sealed class Export
         {
             private readonly FinFile _file;
-            private readonly bool _allLevelsOfDetail;
+            private readonly bool _includeAllLevelsOfDetail;
+            private readonly bool _includeHidden;
             private readonly ModelRoot _model = ModelRoot.CreateModel();
             private readonly FinGltfExtrasBuilder _extras = new();
             private readonly Dictionary<NiTriBasedGeom, Mesh?> _meshes = new(ReferenceEqualityComparer.Instance);
@@ -70,10 +75,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             private Material? _material;
             private int _nodeCount;
 
-            public Export(FinFile file, bool allLevelsOfDetail)
+            public Export(FinFile file, bool includeAllLevelsOfDetail, bool includeHidden)
             {
                 _file = file;
-                _allLevelsOfDetail = allLevelsOfDetail;
+                _includeAllLevelsOfDetail = includeAllLevelsOfDetail;
+                _includeHidden = includeHidden;
             }
 
             public ModelRoot Run()
@@ -84,11 +90,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 root.Extras = BuildRootExtras();
 
                 FindParents();
-                if (!_allLevelsOfDetail)
+                if (!_includeAllLevelsOfDetail)
                 {
                     FindStandIns();
                 }
-                foreach (var block in SceneRoots())
+                foreach (var block in SceneRoots().Where(IsExported))
                 {
                     AddNode(root, block, 0);
                 }
@@ -256,10 +262,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             {
                 var children = block.Children
                     .Select((child, index) => (Index: index, Child: child.Target))
-                    .Where(e => e.Child is not null && !_standIns.Contains(e.Child))
+                    .Where(e => e.Child is not null && IsExported(e.Child))
                     .Select(e => (e.Index, e.Child!));
 
-                if (block is not NiLODNode lod || _allLevelsOfDetail)
+                if (block is not NiLODNode lod || _includeAllLevelsOfDetail)
                 {
                     return children;
                 }
@@ -267,6 +273,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 var level = MostDetailedLevel(lod);
 
                 return level is null ? children : children.Where(e => e.Index == level);
+            }
+
+            private bool IsExported(NiAVObject block)
+            {
+                return !_standIns.Contains(block) && (_includeHidden || !block.AppCulled);
             }
 
             // The level shown closest to the camera. Without usable ranges there's no telling, so every level is kept.
