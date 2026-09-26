@@ -50,8 +50,11 @@ Two names aren't classes but markers:
 
 - `Top Level Object` marks the block that follows it as a root of the scene. The marker is followed by the real class
   name, then that block's data. A file can have more than one root.
-- `End Of File` ends the list. The game stops reading there and ignores anything after it. Shipped files are
-  expected to end exactly at the marker.
+- `End Of File` ends the list. The game stops reading there and ignores anything after it. Every shipped file ends
+  exactly at the marker.
+
+Every shipped file has exactly one root: a `DDUnit` in the 93 unit and object files, a `DDEnv` in the 54 environments
+(see [Digital Domain classes](#digital-domain-classes)).
 
 Blocks don't store their own size and there is no table of contents. The only way to find where a block ends is to
 read all of its fields, so a reader has to know every class that appears in a file. A single unknown class, or a
@@ -70,8 +73,9 @@ Every block starts with a `u32` link ID: the address the object had in memory wh
 to each other by storing that value, for example a node listing its children. A link of `0` means "no object". The
 IDs themselves mean nothing once loaded; they only have to be unique within a file.
 
-Because a block can refer to one that comes later in the file, the game reads in two passes: first every block, then
-it replaces each stored ID with the object it belongs to. A reader has to do the same.
+Blocks often refer to one that comes later in the file (a node is written before its children), so the game reads
+in two passes: first every block, then it replaces each stored ID with the object it belongs to. A reader has to do
+the same.
 
 ## Classes
 
@@ -246,7 +250,8 @@ Some objects carry a collision shape. It is stored inside the object, right afte
 
 Half spaces and intersections are Digital Domain's additions. An inverted shape collides from the inside, for
 example to keep something within an area. The types a file can use are registered by the collision library, so a
-type outside 0–6 can't be read.
+type outside 0–6 can't be read. Shipped files give 324 nodes a volume: mostly boxes and unions, then spheres,
+capsules and a few intersections.
 
 ## Properties
 
@@ -344,8 +349,9 @@ terms it is an *action*: the game starts running it as soon as the file is loade
 ## Extra data
 
 Extra data entries sit inside the `NiObject` part of their owner (see [NiObject](#niobject)). Every entry starts with
-a `u32` size. A plain `NiExtraData` (an entry without a class name) is followed by that many bytes of raw data. The
-subclasses below write a size too, but the game ignores it and reads their fields instead.
+a `u32` size. A plain `NiExtraData` (an entry without a class name) is followed by that many bytes of raw data; no
+shipped file has one. The subclasses below write a size too, but the game ignores it and reads their fields
+instead.
 
 | Class                    | Fields after the size                                                                    |
 |--------------------------|------------------------------------------------------------------------------------------|
@@ -428,8 +434,10 @@ The actor is one placed instance; the shared data is what all instances of that 
 | `i32` + count | tracks            | Keyframes for the animated nodes: rotation, position and scale key lists (type stored only when they have keys) and visibility keys, as in `Ni3dsAnimationNode` |
 | `u32` + count × `vec3` | floor points | Points the game uses to place the object on the ground (from the engine's name for them) |
 
-A *skill* is a named stretch of the object's animation timeline, such as `neutral`. When the game plays a skill, it
-runs the object's animations from the start time to the end time, and it can play a sound along with it:
+A *skill* is a named stretch of the object's animation timeline. When the game plays a skill, it runs the object's
+animations from the start time to the end time, and it can play a sound along with it. Most objects have a `neutral`
+skill; others are generic (`anim1`, `on`, `off`) or specific to a character or machine (`ladder_up`, `fidget_a`,
+`exploding`, `victory`, `lever_pulla`). 265 skills in the shipped files have a sound.
 
 | Type                  | Field            | Meaning                                                                   |
 |-----------------------|------------------|---------------------------------------------------------------------------|
