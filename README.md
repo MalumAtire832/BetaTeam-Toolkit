@@ -92,6 +92,32 @@ betateam convert dds wav /game/extracted/audio /game/wav --mask *.DDS
 betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 ```
 
+### `convert fin nif` — Convert FIN models to NIF
+
+Converts `.FIN` models to NIF (NetImmerse 4.0.0.2) for viewing in [NifSkope](https://github.com/niftools/nifskope).
+The scene tree, geometry, materials and textures are kept; lights and animation aren't exported yet, and each file's
+warnings say what was left out. See [docs/formats/fin.md](docs/formats/fin.md#converting-to-nif).
+
+```
+betateam convert fin nif <INPUT> <OUTPUT> [--mask <pattern>]
+```
+
+| Argument / Option | Description                                                      | Default |
+|-------------------|------------------------------------------------------------------|---------|
+| `INPUT`           | A `.FIN` file, or a directory containing `.FIN` files            | —       |
+| `OUTPUT`          | The `.nif` file to write, or a directory when `INPUT` is one     | —       |
+| `-m`, `--mask`    | File glob pattern when `INPUT` is a directory                    | `*.FIN` |
+
+Examples:
+
+```bash
+betateam convert fin nif /game/extracted/Fin/U0207.FIN /game/nif/U0207.nif
+betateam convert fin nif /game/extracted/Fin /game/nif
+betateam convert fin nif /game/extracted/Fin /game/nif --mask E*.FIN
+```
+
+`scripts/check-nif.py` checks the output against NifSkope's block definitions (`nif.xml`).
+
 ## Reverse Engineering Setup
 
 The formats are researched by reading the game's own code in [Ghidra](https://ghidra-sre.org/). To set up a local
