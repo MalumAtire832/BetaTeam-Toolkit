@@ -12,8 +12,8 @@ The file names follow the IDs the rest of the game uses:
 | `E`    | 54    | Environments. Each mission's puzzle file names one, together with its ambient sound and lightmaps |
 | `U`    | 42    | Units the player builds with (`Diving Board`, `Catapult`, `Launcher`)                        |
 | `OG`   | 34    | Objects placed in levels (`Lever Activator`, `One-Light Door Panel`, `Ogel Laser`)           |
-| `B`    | 7     | Characters (`Evil Ogel`, `Guard`, `Sentry`, `Assembly Line Worker`)            |
-| `T`    | 7     | Specialists (`Motion Specialist`, `Rope Specialist`) and `Tee Vee`                 |
+| `B`    | 7     | Ogel, the game's villain, and his henchmen (`Evil Ogel`, `Guard`, `Sentry`, `Assembly Line Worker`) |
+| `T`    | 7     | The Alpha Team members, by specialty (`Motion Specialist`, `Rope Specialist`), and `Tee Vee` |
 | `BA`, `CU`, `P` | 1 each | `Goody`, `CORD`, and `Low Crate Stack`, the only prop                              |
 
 Every object's behaviour is code in a DLL in `Bhvr.pac`. Most objects have a DLL with their own ID; the others,
