@@ -18,8 +18,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
             RotationKeys = FinKeyReader.ReadOptionalRotKeys(reader);
             PositionKeys = FinKeyReader.ReadOptionalPosKeys(reader);
             ScaleKeys = FinKeyReader.ReadOptionalFloatKeys(reader);
-            var count = reader.ReadSignedCount(5);
-            VisibilityKeys = reader.ReadArray(count, r => new FinVisKey(r.ReadSingle(), r.ReadByte() != 0));
+            VisibilityKeys = FinKeyReader.ReadVisKeys(reader);
         }
     }
 }

@@ -36,6 +36,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             return count == 0 ? FinKeyGroup<FinRotKey>.Empty : ReadRotKeys(reader, count, reader.ReadUInt32());
         }
 
+        public static FinVisKey[] ReadVisKeys(FinBlockReader reader)
+        {
+            var count = reader.ReadSignedCount(5);
+            return reader.ReadArray(count, r => new FinVisKey(r.ReadSingle(), r.ReadByte() != 0));
+        }
+
         // Count and key type, the type present even when there are no keys
         public static FinKeyGroup<FinFloatKey> ReadFloatKeys(FinBlockReader reader)
         {

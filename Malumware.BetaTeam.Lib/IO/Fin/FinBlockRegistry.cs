@@ -61,6 +61,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
                 .RegisterBlock<Ni3dsAlphaAnimator>()
                 .RegisterBlock<Ni3dsSkin>()
                 .RegisterBlock<Ni3dsMorphShape>()
+                .RegisterBlock<DDUnit>()
+                .RegisterBlock<DDEnv>()
+                .RegisterBlock<DDActorSharedData>()
+                .RegisterBlock<DDCorona>()
                 .RegisterExtraData<NiExtraData>()
                 .RegisterExtraData<TexturePropExtraData>()
                 .RegisterExtraData<Ni3dsPropAnimExtraData>();

@@ -12,7 +12,6 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         // Each class group removes its names. A name is added only after confirming the engine registers it.
         private static readonly HashSet<string> PENDING_CLASSES =
         [
-            "DDUnit", "DDActorSharedData", "DDEnv", "DDCorona",
         ];
 
         private readonly ITestOutputHelper _output;

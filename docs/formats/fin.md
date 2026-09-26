@@ -396,3 +396,77 @@ one more unknown `u32`.
 A skinned mesh's vertices move with the bones that influence them: each vertex has a list of bones, how strongly each
 one pulls it, and where the vertex sits relative to that bone. A morph shape keeps several complete sets of vertex
 positions and blends between them.
+
+## Digital Domain classes
+
+These classes are Digital Domain's own. They turn a NetImmerse scene into a game object: something with a type, a
+description, a shadow, animations it can play and sounds that go with them.
+
+### DDUnit and DDEnv
+
+Units (the things the player builds with) are `DDUnit`, environments are `DDEnv`. Both are *actors* and are stored
+the same way: a full `NiNode`, followed by one field.
+
+| Type   | Field       | Meaning                                                                     |
+|--------|-------------|-----------------------------------------------------------------------------|
+| `link` | shared data | The `DDActorSharedData` block that describes this kind of object            |
+
+The actor is one placed instance; the shared data is what all instances of that kind of object have in common.
+
+### DDActorSharedData
+
+| Type          | Field             | Meaning                                                                         |
+|---------------|-------------------|---------------------------------------------------------------------------------|
+| (`NiObject`)  | name              | The object's type name, which is its ID (`U0001`, `OG9997`)                      |
+| C string      | description       | A readable description (`Dummy Object`)                                          |
+| C string      | (unknown)         | Stored by the game, but nothing was found that reads it                          |
+| `bool`        | make shadow       | Whether the object casts a shadow                                                |
+| `bool`        | prop              | Whether the object is a prop rather than a full game object                      |
+| `f32`         | shadow multiplier | Strength or size of the shadow (the game reads it as a multiplier)              |
+| `u32`         | (unknown)         |                                                                                  |
+| `i32` + count | skills            | Named animation clips, see below                                                 |
+| `i32` + count | tracks            | Keyframes for the animated nodes: rotation, position and scale key lists (type stored only when they have keys) and visibility keys, as in `Ni3dsAnimationNode` |
+| `u32` + count × `vec3` | floor points | Points the game uses to place the object on the ground (from the engine's name for them) |
+
+A *skill* is a named stretch of the object's animation timeline, such as `neutral`. When the game plays a skill, it
+runs the object's animations from the start time to the end time, and it can play a sound along with it:
+
+| Type                  | Field            | Meaning                                                                   |
+|-----------------------|------------------|---------------------------------------------------------------------------|
+| C string              | name             | The skill's name                                                          |
+| `f32`                 | start time       | Where the clip starts on the timeline                                     |
+| `f32`                 | end time         | Where it ends. The clip's length is end − start                           |
+| `bool`                | has sound        | Whether a sound block follows                                             |
+| (sound)               | sound            | Only when present, see below                                              |
+| `i32` + count × `u16` | animation nodes  | Which of the actor's animated nodes the skill moves, by index             |
+| `i32` + count × `u16` | actions          | Which of its actions (such as texture animations) the skill runs          |
+| `i32` + count × `u16` | other animations | Which of its other animated parts (such as morphing meshes) the skill runs |
+
+The indices refer to the actor's own lists of animated parts, which the game builds when it loads the object. How it
+orders those lists hasn't been worked out yet, so the indices can't be matched to blocks in the file for now.
+
+A skill's sound:
+
+| Type     | Field                | Meaning                                                                       |
+|----------|----------------------|-------------------------------------------------------------------------------|
+| C string | file name            | The sound file, looked up in the game's audio folder (inferred)               |
+| C string | node name            | When set, the sound comes from that part of the object rather than the whole (inferred) |
+| `bool`   | loop                 | Whether the sound repeats (inferred)                                          |
+| `bool`   | source type          | Passed on when the game creates the sound source; its meaning isn't known    |
+| `bool`   | distance flag        | Passed on with the distances below; its meaning isn't known                   |
+| `f32`    | delay                | Seconds into the skill before the sound starts; `0` or less plays it at once  |
+| `f32`    | gain                 | Volume                                                                        |
+| `f32`    | distance model scale | How quickly the sound gets quieter with distance                              |
+| `f32`    | max distance         | Distance beyond which the sound is no longer heard                            |
+| `f32`    | min distance         | Distance within which the sound plays at full volume                          |
+
+### DDCorona
+
+A glow around a light, such as a lamp or a beacon: a small flat shape that always faces the camera. It fades out with
+distance and when something solid is between the camera and the glow; objects whose name starts with `nonsolid` don't
+block it. It is stored like a `NiTriShape` without the triangle list (the game builds its triangles when drawing),
+followed by one field:
+
+| Type  | Field | Meaning                                                                |
+|-------|-------|------------------------------------------------------------------------|
+| `f32` | size  | Size of the glow. `0` or less means the object's scale is used instead |
