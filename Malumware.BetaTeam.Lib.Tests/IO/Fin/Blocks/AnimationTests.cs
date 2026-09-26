@@ -15,9 +15,11 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
                 .Byte(1).Byte(2).Byte(3)            // unknown
                 .Byte(1)                            // scene graph update
                 .UInt32(1)                          // cycle type
-                .UInt32(10).UInt32(11).UInt32(12)   // unknown
+                .Floats(2)                          // default display time
+                .Floats(1)                          // frequency
+                .Floats(0.25f)                      // phase
                 .Floats(0.5f)                       // begin key time
-                .UInt32(13);                        // unknown
+                .Floats(3200);                      // end key time
         }
 
         // A NiTriShape with 2 vertices, no optional arrays and no triangles
@@ -103,6 +105,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
             Assert.True(animator.Core.SceneGraphUpdate);
             Assert.Equal(1u, animator.Core.CycleType);
             Assert.Equal(0.5f, animator.Core.BeginKeyTime);
+            Assert.Equal(1f, animator.Core.Frequency);
+            Assert.Equal(0.25f, animator.Core.Phase);
+            Assert.Equal(3200f, animator.Core.EndKeyTime);
             Assert.Same(file.Objects[0], animator.Target.Target);
             Assert.Equal(3u, animator.Keys.KeyType);
             var key = Assert.IsType<FinTcbFloatKey>(Assert.Single(animator.Keys.Keys));

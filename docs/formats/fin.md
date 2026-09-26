@@ -385,8 +385,9 @@ position keys, with red, green and blue in place of x, y and z.
 ### Animation settings
 
 Every 3ds animation class stores the same playback settings: `u32` animation type, three unknown `u8`, a `bool`
-*scene graph update*, `u32` cycle type (how the animation repeats), three unknown `u32`, `f32` begin key time and
-one more unknown `u32`.
+*scene graph update*, `u32` cycle type (how the animation repeats), then five `f32`: default display time,
+frequency (playback speed, usually `1`), phase, begin key time and end key time. Times appear to be in 3ds Max ticks
+(4800 per second): end key times such as 960, 3200 and 12800 are common.
 
 ### Animated classes
 
