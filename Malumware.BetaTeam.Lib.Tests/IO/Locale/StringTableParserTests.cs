@@ -172,8 +172,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Locale
 
         private static IReadOnlyList<StringTableEntry> Parse(byte[] bytes)
         {
-            using var parser = new StringTableParser(new MemoryStream(bytes));
-            return parser.Parse();
+            using (var parser = new StringTableParser(new MemoryStream(bytes)))
+            {
+                return parser.Parse();
+            }
         }
     }
 }

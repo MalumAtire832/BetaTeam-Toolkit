@@ -40,8 +40,14 @@ namespace Malumware.BetaTeam.Lib.Tests.GameData
 
         private static bool ContainsArchives(string directory)
         {
-            return Directory.Exists(directory)
-                && Directory.EnumerateFiles(directory, "*.pac", ENUMERATION_OPTIONS).Any();
+            if (!Directory.Exists(directory))
+            {
+                return false;
+            }
+
+            return Directory
+                .EnumerateFiles(directory, "*.pac", ENUMERATION_OPTIONS)
+                .Any();
         }
     }
 }

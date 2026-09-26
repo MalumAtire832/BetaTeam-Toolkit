@@ -17,24 +17,25 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
             var wav = converter.ToWav(audio);
 
             // Assert
-            using var reader = new BinaryReader(new MemoryStream(wav), Encoding.ASCII);
+            using (var reader = new BinaryReader(new MemoryStream(wav), Encoding.ASCII))
+            {
+                Assert.Equal("RIFF", new string(reader.ReadChars(4)));
+                Assert.Equal((uint)(36 + sampleData.Length), reader.ReadUInt32());
+                Assert.Equal("WAVE", new string(reader.ReadChars(4)));
 
-            Assert.Equal("RIFF", new string(reader.ReadChars(4)));
-            Assert.Equal((uint)(36 + sampleData.Length), reader.ReadUInt32());
-            Assert.Equal("WAVE", new string(reader.ReadChars(4)));
+                Assert.Equal("fmt ", new string(reader.ReadChars(4)));
+                Assert.Equal(16u, reader.ReadUInt32());
+                Assert.Equal((ushort)DdsAudioFormat.Pcm, reader.ReadUInt16());
+                Assert.Equal((ushort)2, reader.ReadUInt16());   // channels
+                Assert.Equal(44100u, reader.ReadUInt32());      // sample rate
+                Assert.Equal(176400u, reader.ReadUInt32());     // byte rate
+                Assert.Equal((ushort)4, reader.ReadUInt16());   // block align
+                Assert.Equal((ushort)16, reader.ReadUInt16());  // bits per sample
 
-            Assert.Equal("fmt ", new string(reader.ReadChars(4)));
-            Assert.Equal(16u, reader.ReadUInt32());
-            Assert.Equal((ushort)DdsAudioFormat.Pcm, reader.ReadUInt16());
-            Assert.Equal((ushort)2, reader.ReadUInt16());   // channels
-            Assert.Equal(44100u, reader.ReadUInt32());      // sample rate
-            Assert.Equal(176400u, reader.ReadUInt32());     // byte rate
-            Assert.Equal((ushort)4, reader.ReadUInt16());   // block align
-            Assert.Equal((ushort)16, reader.ReadUInt16());  // bits per sample
-
-            Assert.Equal("data", new string(reader.ReadChars(4)));
-            Assert.Equal((uint)sampleData.Length, reader.ReadUInt32());
-            Assert.Equal(sampleData, reader.ReadBytes(sampleData.Length));
+                Assert.Equal("data", new string(reader.ReadChars(4)));
+                Assert.Equal((uint)sampleData.Length, reader.ReadUInt32());
+                Assert.Equal(sampleData, reader.ReadBytes(sampleData.Length));
+            }
         }
 
         [Fact]
