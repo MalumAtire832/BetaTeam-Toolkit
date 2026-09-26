@@ -94,6 +94,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
                 writer.Write(blockAlign);
                 writer.Write(bitsPerSample);
                 writer.Write((ushort)0);    // extra size (cbSize)
+
                 return ms.ToArray();
             }
         }

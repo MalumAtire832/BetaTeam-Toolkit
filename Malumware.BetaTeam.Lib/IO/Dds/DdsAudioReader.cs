@@ -6,6 +6,7 @@ namespace Malumware.BetaTeam.Lib.IO.Dds
         {
             var name = Path.GetFileNameWithoutExtension(filePath);
             var bytes = File.ReadAllBytes(filePath);
+
             return Read(name, bytes);
         }
 
@@ -16,6 +17,7 @@ namespace Malumware.BetaTeam.Lib.IO.Dds
             {
                 var header = parser.Parse();
                 var data = bytes[(DdsAudioHeader.SIZE + header.ExtraSize)..];
+
                 return new DdsAudio(name, header, data);
             }
         }

@@ -44,6 +44,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Dds
                 });
 
             AnsiConsole.MarkupLine($"[green]Done.[/] Converted {files.Count} files.");
+
             return 0;
         }
     }

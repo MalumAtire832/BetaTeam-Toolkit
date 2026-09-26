@@ -60,6 +60,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Unpack
                 });
 
             AnsiConsole.MarkupLine($"[green]Done.[/] Extracted {totalFiles} files from {archives.Count} archives.");
+
             return 0;
         }
     }

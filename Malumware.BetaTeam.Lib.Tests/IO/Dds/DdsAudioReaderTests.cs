@@ -70,6 +70,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
                 writer.Write((ushort)extraBytes.Length); // extra size (cbSize)
                 writer.Write(extraBytes);
                 writer.Write(sampleData);
+
                 return ms.ToArray();
             }
         }
