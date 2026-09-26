@@ -12,8 +12,6 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         // Each class group removes its names. A name is added only after confirming the engine registers it.
         private static readonly HashSet<string> PENDING_CLASSES =
         [
-            "NiExtraData", "TexturePropExtraData", "Ni3dsPropAnimExtraData", "Ni3dsAnimationNode", "Ni3dsBone", "Ni3dsSkin",
-            "Ni3dsMorphShape", "Ni3dsColorAnimator", "Ni3dsAlphaAnimator",
             "DDUnit", "DDActorSharedData", "DDEnv", "DDCorona",
         ];
 

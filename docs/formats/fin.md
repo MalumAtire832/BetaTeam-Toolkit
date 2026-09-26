@@ -340,3 +340,59 @@ terms it is an *action*: the game starts running it as soon as the file is loade
 | `f32`  | start time   | When the animation starts                                           |
 | `f32`  | cycle time   | Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images |
 | `link` | textures     | The `NiTextureProperty` whose index it changes                      |
+
+## Extra data
+
+Extra data entries sit inside the `NiObject` part of their owner (see [NiObject](#niobject)). Every entry starts with
+a `u32` size. A plain `NiExtraData` (an entry without a class name) is followed by that many bytes of raw data. The
+subclasses below write a size too, but the game ignores it and reads their fields instead.
+
+| Class                    | Fields after the size                                                                    |
+|--------------------------|------------------------------------------------------------------------------------------|
+| `TexturePropExtraData`   | `link` to a `NiFlipTextures`, `i32` index. Digital Domain's: ties an animated texture to its property |
+| `Ni3dsPropAnimExtraData` | `link` to the 3ds animator that animates the owning property                            |
+
+## Animation
+
+The animated models (units with moving parts, blinking lights, fading effects) use 3ds Max animation classes that
+NetImmerse shipped for its 3ds Max exporter. This section describes their layout so files can be read; what each
+setting does is left for a later investigation.
+
+### Keys
+
+Animation is stored as keys: a time and a value, plus interpolation data. A list of keys starts with a count and the
+type of all keys in it. Some lists only store the type when the count is above zero; the classes below say which.
+
+| Type | Float key                          | Position key                                  | Rotation key              |
+|------|------------------------------------|-----------------------------------------------|---------------------------|
+| 1    | linear: time, value                | linear: time, `vec3` value                    | linear (base fields only) |
+| 2    | Bézier: + in and out tangent       | Bézier: + 4 × `vec3` (tangents and two precomputed values) | Bézier: + quaternion, `f32` |
+| 3    | TCB: + tension, continuity, bias, 2 precomputed `f32` | TCB: + tension, continuity, bias, 4 × `vec3` | TCB: + tension, continuity, bias, 2 quaternions, 2 × `f32` |
+| 4    | morph key: nothing is stored       |                                               | Euler: + `u16`, then three float key lists (x, y, z) |
+| 5    | barycentric morph: TCB + `u32` n and 3 × n values |                                  |                           |
+| 6    | cubic morph: TCB + 2 × `f32`       |                                               |                           |
+
+Every rotation key starts with the time, an angle, a `vec3` axis, a quaternion (4 × `f32`), an `i32` number of extra
+spins and a `u32` whose meaning is unknown. A visibility key is a time and a `bool`. Colours are animated with
+position keys, with red, green and blue in place of x, y and z.
+
+### Animation settings
+
+Every 3ds animation class stores the same playback settings: `u32` animation type, three unknown `u8`, a `bool`
+*scene graph update*, `u32` cycle type (how the animation repeats), three unknown `u32`, `f32` begin key time and
+one more unknown `u32`.
+
+### Animated classes
+
+| Class                | Based on             | Fields after the base class                                                     |
+|----------------------|----------------------|---------------------------------------------------------------------------------|
+| `Ni3dsAnimationNode` | `NiNode`             | Settings, then rotation, position and scale (float) key lists, each storing its type only when it has keys, then `i32` count and visibility keys |
+| `Ni3dsBone`          | `Ni3dsAnimationNode` | Nothing: a bone is an animated node that a skin refers to                      |
+| `Ni3dsColorAnimator` | `NiObject`           | Settings, `link` target, unknown `u32`, `i32` count, key type (always), colour keys |
+| `Ni3dsAlphaAnimator` | `NiObject`           | Settings, `link` target, `i32` count, key type (always), float keys           |
+| `Ni3dsSkin`          | `NiTriShape`         | Unknown `u8`, `bool` has skin data; if set, per vertex a `u16` count of influences, each a `f32` weight, a `vec3` offset relative to the bone, and a `link` to the `Ni3dsBone` |
+| `Ni3dsMorphShape`    | `NiTriShape`         | Settings, 2 unknown `u8`, `i32` target count, `i32` key count, a bounding sphere (`vec3`, `f32`), key type and float keys, then per target one `vec3` per vertex |
+
+A skinned mesh's vertices move with the bones that influence them: each vertex has a list of bones, how strongly each
+one pulls it, and where the vertex sits relative to that bone. A morph shape keeps several complete sets of vertex
+positions and blends between them.

@@ -102,6 +102,24 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             return (int)count;
         }
 
+        // A signed count as the engine reads it: anything below one means no elements
+        public int ReadSignedCount(int elementSize)
+        {
+            var offset = Position;
+            var count = _reader.ReadInt32();
+            if (count <= 0)
+            {
+                return 0;
+            }
+            if (elementSize > 0 && count > (Length - Position) / elementSize)
+            {
+                throw new InvalidDataException(
+                    $"Count {count} at offset 0x{offset:X} exceeds the {Length - Position} remaining bytes"
+                );
+            }
+            return count;
+        }
+
         public T[] ReadArray<T>(int count, Func<FinBlockReader, T> read)
         {
             var values = new T[count];

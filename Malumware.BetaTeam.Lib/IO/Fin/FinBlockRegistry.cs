@@ -54,7 +54,16 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
                 .RegisterBlock<NiSpecularProperty>()
                 .RegisterBlock<NiShadeProperty>()
                 .RegisterBlock<NiImage>()
-                .RegisterBlock<NiFlipTextures>();
+                .RegisterBlock<NiFlipTextures>()
+                .RegisterBlock<Ni3dsAnimationNode>()
+                .RegisterBlock<Ni3dsBone>()
+                .RegisterBlock<Ni3dsColorAnimator>()
+                .RegisterBlock<Ni3dsAlphaAnimator>()
+                .RegisterBlock<Ni3dsSkin>()
+                .RegisterBlock<Ni3dsMorphShape>()
+                .RegisterExtraData<NiExtraData>()
+                .RegisterExtraData<TexturePropExtraData>()
+                .RegisterExtraData<Ni3dsPropAnimExtraData>();
         }
     }
 }
