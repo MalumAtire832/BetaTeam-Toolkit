@@ -54,8 +54,8 @@ See [docs/formats/string-tables.md](docs/formats/string-tables.md).
 `.FIN` files hold every 3D object in the game: environments, units, level objects and characters. Each is a
 NetImmerse scene graph in the early, pre-NIF stream layout, extended with Digital Domain classes that carry an
 object's description, behaviour DLL, shadow settings, named animation clips with their sounds, and floor points.
-The library reads every shipped file; export to glTF and NIF is not implemented yet.
-See [docs/formats/fin.md](docs/formats/fin.md).
+The library reads every shipped file and converts it to glTF for Blender (`convert fin gltf`); NIF export is not
+implemented yet. See [docs/formats/fin.md](docs/formats/fin.md).
 
 
 ## CLI
