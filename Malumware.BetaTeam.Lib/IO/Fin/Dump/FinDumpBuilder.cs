@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Reflection;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
 
 namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
@@ -50,7 +49,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
 
             var skipHeader = value is NiObject or NiExtraData;
             var nodes = new List<FinDumpNode>();
-            foreach (var property in PropertiesBaseFirst(value.GetType()))
+            foreach (var property in FinReflection.PropertiesBaseFirst(value.GetType()))
             {
                 if (skipHeader && HEADER_PROPERTIES.Contains(property.Name))
                 {
@@ -155,28 +154,6 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
                 .Select(TypeName);
 
             return $"{name}<{string.Join(", ", arguments)}>";
-        }
-
-        // Reflection doesn't guarantee order, so walk the hierarchy and sort each level by declaration order
-        private static IEnumerable<PropertyInfo> PropertiesBaseFirst(Type type)
-        {
-            var hierarchy = new Stack<Type>();
-            for (var current = type; current is not null && current != typeof(object); current = current.BaseType)
-            {
-                hierarchy.Push(current);
-            }
-
-            foreach (var level in hierarchy)
-            {
-                var properties = level
-                    .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                    .Where(property => property.GetIndexParameters().Length == 0)
-                    .OrderBy(property => property.MetadataToken);
-                foreach (var property in properties)
-                {
-                    yield return property;
-                }
-            }
         }
     }
 }

@@ -1,5 +1,4 @@
 using System.Numerics;
-using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
@@ -182,12 +181,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
         private static void WriteStruct(Utf8JsonWriter writer, object value)
         {
             writer.WriteStartObject();
-            var properties = value
-                .GetType()
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                .Where(property => property.GetIndexParameters().Length == 0)
-                .OrderBy(property => property.MetadataToken);
-            foreach (var property in properties)
+            foreach (var property in FinReflection.DeclaredProperties(value.GetType()))
             {
                 writer.WritePropertyName(property.Name);
                 WriteValue(writer, property.GetValue(value));

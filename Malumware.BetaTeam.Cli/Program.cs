@@ -1,4 +1,5 @@
 using Malumware.BetaTeam.Cli.Commands.Convert.Dds;
+using Malumware.BetaTeam.Cli.Commands.Convert.Fin;
 using Malumware.BetaTeam.Cli.Commands.Fin;
 using Malumware.BetaTeam.Cli.Commands.Unpack;
 using Spectre.Console.Cli;
@@ -31,6 +32,16 @@ namespace Malumware.BetaTeam.Cli
                             .WithDescription("Convert DDS audio files in a directory to WAV format.")
                             .WithExample("convert", "dds", "wav", "/game/extracted/audio", "/game/wav")
                             .WithExample("convert", "dds", "wav", "/game/extracted/audio", "/game/wav", "--mask", "*.DDS");
+                    });
+
+                    convert.AddBranch("fin", fin =>
+                    {
+                        fin.SetDescription("Convert FIN model files.");
+
+                        fin.AddCommand<FinToGltfCommand>("gltf")
+                            .WithDescription("Convert FIN model files in a directory to binary glTF (.glb), for importing into Blender.")
+                            .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf")
+                            .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf", "--mask", "U*.FIN", "--all-lods");
                     });
                 });
 
