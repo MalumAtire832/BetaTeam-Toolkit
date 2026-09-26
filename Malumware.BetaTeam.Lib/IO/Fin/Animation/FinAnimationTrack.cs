@@ -12,6 +12,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             var rotation = FinKeyReader.ReadOptionalRotKeys(reader);
             var position = FinKeyReader.ReadOptionalPosKeys(reader);
             var scale = FinKeyReader.ReadOptionalFloatKeys(reader);
+
             return new FinAnimationTrack(rotation, position, scale, FinKeyReader.ReadVisKeys(reader));
         }
     }

@@ -49,8 +49,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
                 FinJsonDumpWriter.Write(dump, json);
                 // Deep scene trees nest past System.Text.Json's default reading depth of 64
                 var options = new System.Text.Json.JsonDocumentOptions { MaxDepth = 1000 };
-                using var document = System.Text.Json.JsonDocument.Parse(json.ToArray(), options);
-                Assert.Equal(name, document.RootElement.GetProperty("name").GetString());
+                using (var document = System.Text.Json.JsonDocument.Parse(json.ToArray(), options))
+                {
+                    Assert.Equal(name, document.RootElement.GetProperty("name").GetString());
+                }
             }
             Assert.NotEqual(0, count);
         }
@@ -60,7 +62,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
             switch (node)
             {
                 case FinDumpObject obj:
-                    foreach (var group in obj.Children.GroupBy(c => c.Field).Where(g => g.Count() > 1))
+                    var repeated = obj.Children
+                        .GroupBy(c => c.Field)
+                        .Where(g => g.Count() > 1);
+                    foreach (var group in repeated)
                     {
                         duplicates.Add($"{obj.ClassName}.{group.Key}");
                     }

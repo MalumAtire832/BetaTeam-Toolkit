@@ -68,7 +68,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
                     break;
                 case FinDumpArray array:
                     WriteLine(writer, prefix + name);
-                    var values = array.Values.Select(v => (FinDumpNode)new FinDumpValue(null, v)).ToList();
+                    var values = array.Values
+                        .Select(v => (FinDumpNode)new FinDumpValue(null, v))
+                        .ToList();
                     WriteChildren(writer, values, childIndent, full, indexed: true);
                     break;
             }
@@ -85,6 +87,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
             {
                 header += $" [offset 0x{offset:X}]";
             }
+
             return header;
         }
 

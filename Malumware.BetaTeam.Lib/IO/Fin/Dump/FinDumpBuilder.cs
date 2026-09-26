@@ -17,7 +17,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
         public static FinDump Build(FinFile file)
         {
             var visited = new HashSet<NiObject>(ReferenceEqualityComparer.Instance);
-            var roots = file.TopLevelObjects.Select(block => BuildBlock(null, block, visited, 0)).ToList();
+            var roots = file.TopLevelObjects
+                .Select(block => BuildBlock(null, block, visited, 0))
+                .ToList();
 
             var unreferenced = new List<FinDumpObject>();
             foreach (var block in file.Objects)
@@ -55,6 +57,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
                 }
                 nodes.Add(BuildField(property.Name, property.GetValue(value), visited, inData, depth + 1));
             }
+
             return nodes;
         }
 
@@ -77,6 +80,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
                     {
                         return new FinDumpValue(field, value);
                     }
+
                     // Plain objects (keys, bounding volumes, skills) are data: links inside them aren't expanded
                     return new FinDumpObject(field, TypeName(value.GetType()), null, null, BuildFields(value, visited, true, depth));
             }
@@ -93,6 +97,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
             {
                 return new FinDumpReference(field, target.ClassName, target.LinkId);
             }
+
             return BuildBlock(field, target, visited, depth);
         }
 
@@ -101,12 +106,20 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
             var element = ElementType(type);
             if (element.IsValueType)
             {
-                return new FinDumpArray(field, TypeName(element), items.Cast<object?>().ToList());
+                var values = items
+                    .Cast<object?>()
+                    .ToList();
+
+                return new FinDumpArray(field, TypeName(element), values);
             }
 
             // Links and extra data make up the tree; anything else is data
             var isData = inData || !(typeof(FinRef).IsAssignableFrom(element) || typeof(NiExtraData).IsAssignableFrom(element));
-            var nodes = items.Cast<object?>().Select(item => BuildField(null, item, visited, isData, depth + 1)).ToList();
+            var nodes = items
+                .Cast<object?>()
+                .Select(item => BuildField(null, item, visited, isData, depth + 1))
+                .ToList();
+
             return new FinDumpList(field, TypeName(element), nodes, isData);
         }
 
@@ -116,8 +129,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
             {
                 return type.GetElementType()!;
             }
-            var enumerable = type.GetInterfaces().Append(type)
+            var enumerable = type
+                .GetInterfaces()
+                .Append(type)
                 .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
             return enumerable.GetGenericArguments()[0];
         }
 
@@ -133,7 +149,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
                 return type.Name;
             }
             var name = type.Name[..type.Name.IndexOf('`')];
-            return $"{name}<{string.Join(", ", type.GetGenericArguments().Select(TypeName))}>";
+            var arguments = type
+                .GetGenericArguments()
+                .Select(TypeName);
+
+            return $"{name}<{string.Join(", ", arguments)}>";
         }
     }
 }

@@ -18,6 +18,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             var startTime = reader.ReadSingle();
             var endTime = reader.ReadSingle();
             var sound = reader.ReadByte() != 0 ? FinSkillSound.Read(reader) : null;
+
             return new FinSkill(name, startTime, endTime, sound, ReadIndices(reader), ReadIndices(reader), ReadIndices(reader));
         }
 

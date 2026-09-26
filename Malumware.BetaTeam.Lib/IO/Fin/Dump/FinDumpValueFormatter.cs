@@ -28,7 +28,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
         // Record structs (colours, triangles, ranges) as their property values in declaration order
         private static string FormatStruct(object value)
         {
-            var values = FinReflection.DeclaredProperties(value.GetType())
+            var values = FinReflection
+                .DeclaredProperties(value.GetType())
                 .Select(property => Format(property.GetValue(value)));
             return $"({string.Join(", ", values)})";
         }

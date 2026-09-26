@@ -65,6 +65,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             }
 
             var keys = reader.ReadArray(count, r => ReadFloatKey(r, type, offset));
+
             return new FinKeyGroup<FinFloatKey>(type, keys);
         }
 
@@ -72,6 +73,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
         {
             var offset = reader.Position;
             var keys = reader.ReadArray<FinPosKey?>(count, r => ReadPosKey(r, type, offset));
+
             return new FinKeyGroup<FinPosKey>(type, keys);
         }
 
@@ -79,6 +81,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
         {
             var offset = reader.Position;
             var keys = reader.ReadArray<FinRotKey?>(count, r => ReadRotKey(r, type, offset));
+
             return new FinKeyGroup<FinRotKey>(type, keys);
         }
 
@@ -115,6 +118,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             }
 
             var count = reader.ReadCount(3 * sizeof(uint));
+
             return new FinBaryMorphKey(
                 time, value, tension, continuity, bias, ds, dd,
                 reader.ReadArray(count, r => r.ReadUInt32()),
@@ -139,6 +143,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             {
                 return new FinBezierPosKey(time, value, reader.ReadVector3(), reader.ReadVector3(), reader.ReadVector3(), reader.ReadVector3());
             }
+
             return new FinTcbPosKey(
                 time, value, reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(),
                 reader.ReadVector3(), reader.ReadVector3(), reader.ReadVector3(), reader.ReadVector3());
@@ -172,6 +177,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
                     reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(),
                     ReadQuaternion(reader), ReadQuaternion(reader), reader.ReadSingle(), reader.ReadSingle());
             }
+
             return new FinEulerRotKey(
                 time, angle, axis, quaternion, extraSpins, unknown2C,
                 reader.ReadUInt16(), ReadOptionalFloatKeys(reader), ReadOptionalFloatKeys(reader), ReadOptionalFloatKeys(reader));

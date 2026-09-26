@@ -13,13 +13,15 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
         public IReadOnlyCollection<string> ExtraDataClassNames => _extraData.Keys;
 
         // Block classes are named after the engine classes, so the C# name is the name in the file
-        public FinBlockRegistry RegisterBlock<T>() where T : NiObject, new()
+        public FinBlockRegistry RegisterBlock<T>()
+            where T : NiObject, new()
         {
             _blocks[typeof(T).Name] = () => new T();
             return this;
         }
 
-        public FinBlockRegistry RegisterExtraData<T>() where T : NiExtraData, new()
+        public FinBlockRegistry RegisterExtraData<T>()
+            where T : NiExtraData, new()
         {
             _extraData[typeof(T).Name] = () => new T();
             return this;

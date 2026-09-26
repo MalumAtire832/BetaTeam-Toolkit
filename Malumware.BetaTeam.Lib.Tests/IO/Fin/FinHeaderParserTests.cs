@@ -9,15 +9,16 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         public void Parse_ReturnsHeader_WhenLineIsValid()
         {
             // Arrange
-            using var parser = new FinHeaderParser(new MemoryStream(Encoding.ASCII.GetBytes("Dweezil 23\nrest")));
+            using (var parser = new FinHeaderParser(new MemoryStream(Encoding.ASCII.GetBytes("Dweezil 23\nrest"))))
+            {
+                // Act
+                var header = parser.Parse();
 
-            // Act
-            var header = parser.Parse();
-
-            // Assert
-            Assert.True(header.IsValid);
-            Assert.Equal(23, header.Version);
-            Assert.Equal(11, header.Size);
+                // Assert
+                Assert.True(header.IsValid);
+                Assert.Equal(23, header.Version);
+                Assert.Equal(11, header.Size);
+            }
         }
 
         [Theory]
@@ -30,27 +31,29 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         public void Parse_ThrowsInvalidDataException_WhenLineIsMalformed(string text)
         {
             // Arrange
-            using var parser = new FinHeaderParser(new MemoryStream(Encoding.ASCII.GetBytes(text)));
+            using (var parser = new FinHeaderParser(new MemoryStream(Encoding.ASCII.GetBytes(text))))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
+                // Assert
+                Assert.Throws<InvalidDataException>(act);
+            }
         }
 
         [Fact]
         public void Parse_ThrowsInvalidDataException_WhenVersionIsNot23()
         {
             // Arrange
-            using var parser = new FinHeaderParser(new MemoryStream(Encoding.ASCII.GetBytes("Dweezil 22\n")));
+            using (var parser = new FinHeaderParser(new MemoryStream(Encoding.ASCII.GetBytes("Dweezil 22\n"))))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            var exception = Assert.Throws<InvalidDataException>(act);
-            Assert.Contains("22", exception.Message);
+                // Assert
+                var exception = Assert.Throws<InvalidDataException>(act);
+                Assert.Contains("22", exception.Message);
+            }
         }
 
         [Fact]
@@ -58,13 +61,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         {
             // Arrange
             var bytes = Encoding.ASCII.GetBytes("Dweezil " + new string('1', 200) + "\n");
-            using var parser = new FinHeaderParser(new MemoryStream(bytes));
+            using (var parser = new FinHeaderParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
+                // Assert
+                Assert.Throws<InvalidDataException>(act);
+            }
         }
     }
 }

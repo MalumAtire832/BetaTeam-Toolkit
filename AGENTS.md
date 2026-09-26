@@ -41,6 +41,20 @@ Match the existing code:
 
 - Block-scoped namespaces (`namespace Foo.Bar { ... }`), never file-scoped.
 - Always put braces around `if`/`for`/`foreach`/`while` bodies, even single statements.
+- Put a blank line before a `return` that follows a closing brace or more than one statement. A single statement
+  followed by `return` (`_writer.Write(value); return this;`) needs none.
+- Use `using` blocks, not `using var` declarations.
+- In a chain of two or more method calls (LINQ in particular), put the receiver on the first line and each call on its
+  own indented line:
+  ```csharp
+  var files = Directory
+      .EnumerateFiles(inputPath, mask, options)
+      .Order()
+      .ToList();
+  ```
+  Pull a chain out into a variable rather than nesting it inside another call. The exception is a test's byte builder
+  (`FinStreamBuilder`), where each line groups the calls for one part of the byte layout.
+- Generic `where` constraints go on their own indented line below the declaration.
 - Interface members get an explicit `public` modifier.
 - Constants are `UPPER_SNAKE_CASE` (`SIZE`, `MARKER`, `MAX_NAME_LENGTH`).
 - No XML doc comments on self-explanatory members. Use short `//` comments to explain *why*, e.g. a quirk of the

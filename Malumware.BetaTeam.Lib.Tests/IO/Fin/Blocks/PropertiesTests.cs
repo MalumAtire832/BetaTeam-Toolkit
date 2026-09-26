@@ -5,7 +5,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
 {
     public class PropertiesTests
     {
-        private static T ReadSingle<T>(FinStreamBuilder builder) where T : NiObject
+        private static T ReadSingle<T>(FinStreamBuilder builder)
+            where T : NiObject
         {
             var file = FinReader.Read("TEST", builder.EndOfFile().ToArray());
             return Assert.IsType<T>(Assert.Single(file.Objects));

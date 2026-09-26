@@ -14,6 +14,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             var exception = new InvalidDataException($"Unknown class \"{className}\" at offset 0x{offset:X}");
             exception.Data[CLASS_NAME_KEY] = className;
             exception.Data[OFFSET_KEY] = offset;
+
             return exception;
         }
 
@@ -21,6 +22,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
         {
             className = exception.Data[CLASS_NAME_KEY] as string;
             offset = exception.Data[OFFSET_KEY] as long? ?? 0;
+
             return className is not null;
         }
     }

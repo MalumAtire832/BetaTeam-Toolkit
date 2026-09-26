@@ -31,6 +31,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks.BoundingVolumes
                 _ => throw new InvalidDataException($"Unknown bounding volume type {type} at offset 0x{offset:X}"),
             };
             volume.Load(reader, depth);
+
             return volume;
         }
 
