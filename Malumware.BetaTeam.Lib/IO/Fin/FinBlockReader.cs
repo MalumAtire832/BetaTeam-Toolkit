@@ -47,9 +47,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             return new FinColor3(ReadSingle(), ReadSingle(), ReadSingle());
         }
 
-        public FinColorA ReadColorA()
+        public FinColor4 ReadColor4()
         {
-            return new FinColorA(ReadSingle(), ReadSingle(), ReadSingle(), ReadSingle());
+            return new FinColor4(ReadSingle(), ReadSingle(), ReadSingle(), ReadSingle());
         }
 
         public FinMatrix3 ReadMatrix3()
@@ -69,6 +69,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             {
                 throw new InvalidDataException($"Invalid string length {length} at offset 0x{offset:X}");
             }
+
             return Encoding.ASCII.GetString(_reader.ReadBytes((int)length));
         }
 
@@ -85,6 +86,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             {
                 throw new InvalidDataException($"Invalid string length {length} at offset 0x{offset:X}");
             }
+
             return Encoding.Latin1.GetString(_reader.ReadBytes(length));
         }
 
@@ -99,6 +101,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
                     $"Count {count} at offset 0x{offset:X} exceeds the {Length - Position} remaining bytes"
                 );
             }
+
             return (int)count;
         }
 
@@ -117,6 +120,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
                     $"Count {count} at offset 0x{offset:X} exceeds the {Length - Position} remaining bytes"
                 );
             }
+
             return count;
         }
 
@@ -127,17 +131,21 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             {
                 values[i] = read(this);
             }
+
             return values;
         }
 
-        public FinRef<T> ReadRef<T>() where T : NiObject
+        public FinRef<T> ReadRef<T>()
+            where T : NiObject
         {
             var reference = new FinRef<T>(ReadUInt32());
             _refs.Add(reference);
+
             return reference;
         }
 
-        public IReadOnlyList<FinRef<T>> ReadRefList<T>() where T : NiObject
+        public IReadOnlyList<FinRef<T>> ReadRefList<T>()
+            where T : NiObject
         {
             var count = ReadCount(sizeof(uint));
             return ReadArray(count, r => r.ReadRef<T>());
@@ -159,6 +167,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
                 extraData.Load(this);
                 list.Add(extraData);
             }
+
             return list;
         }
     }

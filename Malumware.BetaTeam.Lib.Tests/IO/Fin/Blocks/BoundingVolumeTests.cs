@@ -17,6 +17,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
                 .UInt32(1);                                 // has bounding volume
             var bytes = writeVolume(builder).NiNodeFields([], []).EndOfFile().ToArray();
             var file = FinReader.Read("TEST", bytes);
+
             return Assert.IsType<NiNode>(Assert.Single(file.Objects));
         }
 
@@ -127,6 +128,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
                 {
                     b = b.UInt32(4).UInt32(1);
                 }
+
                 return b.UInt32(5).Floats(1, 0, 0, 0);
             });
 

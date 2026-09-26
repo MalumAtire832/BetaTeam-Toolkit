@@ -21,7 +21,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
         }
     }
 
-    public sealed class FinRef<T> : FinRef where T : NiObject
+    public sealed class FinRef<T> : FinRef
+        where T : NiObject
     {
         public new T? Target => (T?)base.Target;
         public override Type TargetType => typeof(T);

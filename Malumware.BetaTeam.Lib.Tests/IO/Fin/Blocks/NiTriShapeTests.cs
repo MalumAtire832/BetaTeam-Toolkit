@@ -69,7 +69,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
             Assert.Equal(1, shape.TriangleCount);
             var textureSet = Assert.Single(shape.TextureSets!);
             Assert.Equal(new Vector3(1, 0, 0), textureSet[1]);
-            Assert.Equal(new FinColorA(0, 1, 0, 1), shape.Colors![1]);
+            Assert.Equal(new FinColor4(0, 1, 0, 1), shape.Colors![1]);
             Assert.Equal(new FinPlane(new Vector3(0, 0, 1), 0), Assert.Single(shape.TrianglePlanes!));
             Assert.Equal(new FinTriangle(0, 1, 2), Assert.Single(shape.Triangles));
         }

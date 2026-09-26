@@ -82,6 +82,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             }
 
             FinLinker.Link(objects, reader.Refs);
+
             return new FinFile(_name, _header, objects, topLevelObjects);
         }
     }

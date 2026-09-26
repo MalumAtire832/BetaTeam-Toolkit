@@ -23,6 +23,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         {
             _writer.Write(value.Length);
             _writer.Write(Encoding.ASCII.GetBytes(value));
+
             return this;
         }
 
@@ -33,6 +34,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
                 _writer.Write(0);
                 return this;
             }
+
             return SizedString(value);
         }
 
@@ -67,6 +69,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
             {
                 _writer.Write(value);
             }
+
             return this;
         }
 
@@ -77,6 +80,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
             {
                 _writer.Write(linkId);
             }
+
             return this;
         }
 

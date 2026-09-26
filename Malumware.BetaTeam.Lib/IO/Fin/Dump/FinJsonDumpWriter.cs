@@ -16,24 +16,25 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
                 // Keep names like "Bräu" readable instead of \u escapes
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             };
-            using var writer = new Utf8JsonWriter(stream, options);
-
-            writer.WriteStartObject();
-            writer.WriteString("name", dump.Name);
-            writer.WriteNumber("version", dump.Version);
-            writer.WriteStartArray("roots");
-            foreach (var root in dump.Roots)
+            using (var writer = new Utf8JsonWriter(stream, options))
             {
-                WriteObject(writer, root);
+                writer.WriteStartObject();
+                writer.WriteString("name", dump.Name);
+                writer.WriteNumber("version", dump.Version);
+                writer.WriteStartArray("roots");
+                foreach (var root in dump.Roots)
+                {
+                    WriteObject(writer, root);
+                }
+                writer.WriteEndArray();
+                writer.WriteStartArray("unreferenced");
+                foreach (var block in dump.Unreferenced)
+                {
+                    WriteObject(writer, block);
+                }
+                writer.WriteEndArray();
+                writer.WriteEndObject();
             }
-            writer.WriteEndArray();
-            writer.WriteStartArray("unreferenced");
-            foreach (var block in dump.Unreferenced)
-            {
-                WriteObject(writer, block);
-            }
-            writer.WriteEndArray();
-            writer.WriteEndObject();
         }
 
         private static void WriteObject(Utf8JsonWriter writer, FinDumpObject obj)
@@ -181,7 +182,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
         private static void WriteStruct(Utf8JsonWriter writer, object value)
         {
             writer.WriteStartObject();
-            var properties = value.GetType()
+            var properties = value
+                .GetType()
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                 .Where(property => property.GetIndexParameters().Length == 0)
                 .OrderBy(property => property.MetadataToken);

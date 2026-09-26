@@ -150,6 +150,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
                 var next = i < length ? new[] { i + 1 } : [];
                 builder = builder.SizedString("TestListBlock").NiObject(i).Refs(next).UInt32(0);
             }
+
             return builder;
         }
 
