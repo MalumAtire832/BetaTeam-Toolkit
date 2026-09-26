@@ -61,6 +61,7 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
             }
 
             CloseEntry();
+
             return _entries;
         }
 
@@ -121,6 +122,7 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
             {
                 CloseEntry();
                 OpenEntry(line);
+
                 return;
             }
 

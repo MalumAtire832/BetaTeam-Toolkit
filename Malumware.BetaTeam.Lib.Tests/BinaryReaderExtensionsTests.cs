@@ -9,14 +9,15 @@ namespace Malumware.BetaTeam.Lib.Tests
         {
             // Arrange
             var bytes = new byte[] { 0x41, 0x42, 0x43, 0x00, 0x44 };
-            using var reader = new BinaryReader(new MemoryStream(bytes));
+            using (var reader = new BinaryReader(new MemoryStream(bytes)))
+            {
+                // Act
+                var result = reader.ReadBytesUntil(terminator: 0x00);
 
-            // Act
-            var result = reader.ReadBytesUntil(terminator: 0x00);
-
-            // Assert
-            Assert.Equal(new byte[] { 0x41, 0x42, 0x43 }, result);
-            Assert.Equal(0x44, reader.ReadByte());
+                // Assert
+                Assert.Equal(new byte[] { 0x41, 0x42, 0x43 }, result);
+                Assert.Equal(0x44, reader.ReadByte());
+            }
         }
 
         [Fact]
@@ -24,13 +25,14 @@ namespace Malumware.BetaTeam.Lib.Tests
         {
             // Arrange
             var bytes = new byte[] { 0x00, 0x41 };
-            using var reader = new BinaryReader(new MemoryStream(bytes));
+            using (var reader = new BinaryReader(new MemoryStream(bytes)))
+            {
+                // Act
+                var result = reader.ReadBytesUntil(terminator: 0x00);
 
-            // Act
-            var result = reader.ReadBytesUntil(terminator: 0x00);
-
-            // Assert
-            Assert.Empty(result);
+                // Assert
+                Assert.Empty(result);
+            }
         }
 
         [Fact]
@@ -38,13 +40,14 @@ namespace Malumware.BetaTeam.Lib.Tests
         {
             // Arrange
             var bytes = new byte[] { 0x41, 0x42 };
-            using var reader = new BinaryReader(new MemoryStream(bytes));
+            using (var reader = new BinaryReader(new MemoryStream(bytes)))
+            {
+                // Act
+                var act = () => reader.ReadBytesUntil(terminator: 0x00);
 
-            // Act
-            var act = () => reader.ReadBytesUntil(terminator: 0x00);
-
-            // Assert
-            Assert.Throws<EndOfStreamException>(act);
+                // Assert
+                Assert.Throws<EndOfStreamException>(act);
+            }
         }
     }
 }

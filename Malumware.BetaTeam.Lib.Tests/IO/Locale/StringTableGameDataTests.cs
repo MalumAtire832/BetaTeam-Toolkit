@@ -30,7 +30,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Locale
                     var table = StringTableReader.Read(entry.FileName, data);
                     count++;
 
-                    var tagLines = Encoding.ASCII.GetString(data).Split('\n').Count(line => line.StartsWith("=="));
+                    var tagLines = Encoding.ASCII
+                        .GetString(data)
+                        .Split('\n')
+                        .Count(line => line.StartsWith("=="));
                     if (table.Entries.Count != tagLines)
                     {
                         mismatches.Add($"{archive.FileName}/{entry.FileName}: {table.Entries.Count} of {tagLines}");
@@ -55,7 +58,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Locale
 
         private static IEnumerable<PacArchive> LocaleArchives(PacArchiveReader reader)
         {
-            return GameDataPaths.Archives()
+            return GameDataPaths
+                .Archives()
                 .Where(path => Path.GetFileName(path).StartsWith("Locale_", StringComparison.OrdinalIgnoreCase))
                 .Select(reader.Read);
         }

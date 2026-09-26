@@ -54,8 +54,8 @@ See [docs/formats/string-tables.md](docs/formats/string-tables.md).
 `.FIN` files hold every 3D object in the game: environments, units, level objects and characters. Each is a
 NetImmerse scene graph in the early, pre-NIF stream layout, extended with Digital Domain classes that carry an
 object's description, behaviour DLL, shadow settings, named animation clips with their sounds, and floor points.
-The library reads every shipped file; export to glTF and NIF is not implemented yet.
-See [docs/formats/fin.md](docs/formats/fin.md).
+The library reads every shipped file and converts it to glTF for Blender (`convert fin gltf`); NIF export is not
+implemented yet. See [docs/formats/fin.md](docs/formats/fin.md).
 
 
 ## CLI
@@ -105,30 +105,30 @@ betateam convert dds wav /game/extracted/audio /game/wav --mask *.DDS
 betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 ```
 
-### `fin dump` — Inspect FIN models
+### `convert fin gltf` — Convert FIN models to glTF
 
-Dumps the block tree of a `.FIN` file, with every field, as a text tree or as JSON. A single file goes to the terminal
-unless `--output` is given. A directory is dumped into one `.txt` or `.json` file per model; a file that fails to
-read is reported and the rest carry on.
+Converts `.FIN` models to binary glTF (`.glb`) for importing into Blender. The node hierarchy and each object's
+transform are kept, skinned meshes are bound to their bones as an armature, and the fields that aren't geometry show
+up as custom properties.
+See [docs/formats/fin.md](docs/formats/fin.md#converting-to-gltf).
 
 ```
-betateam fin dump <INPUT> [--output <path>] [--json] [--full] [--mask <pattern>]
+betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--include-all-lods] [--include-hidden]
 ```
 
-| Argument / Option | Description                                                    | Default |
-|-------------------|----------------------------------------------------------------|---------|
-| `INPUT`           | A `.FIN` file, or a directory of them                          | —       |
-| `-o`, `--output`  | Output file, or output directory (required for a directory)    | stdout  |
-| `--json`          | Write JSON instead of a text tree                              | off     |
-| `--full`          | Write every array and key value instead of a summary           | off     |
-| `-m`, `--mask`    | File glob pattern when `INPUT` is a directory                  | `*.FIN` |
+| Argument / Option    | Description                                                                                               | Default |
+|----------------------|-----------------------------------------------------------------------------------------------------------|---------|
+| `INPUT_DIRECTORY`    | Directory containing `.FIN` files                                                                         | —       |
+| `OUTPUT_DIRECTORY`   | Directory to write `.glb` files into                                                                      | —       |
+| `-m`, `--mask`       | File glob pattern                                                                                         | `*.FIN` |
+| `--include-all-lods` | Keep every level of detail instead of only the most detailed, including characters' flat `LOD_` stand-ins | off     |
+| `--include-hidden`   | Keep the objects the game loads hidden, such as effects, glows and lights it switches on when needed      | off     |
 
 Examples:
 
 ```bash
-betateam fin dump /game/extracted/Fin/U0207.FIN
-betateam fin dump /game/extracted/Fin/U0207.FIN --json --full -o U0207.json
-betateam fin dump /game/extracted/Fin -o /game/dumps --json
+betateam convert fin gltf /game/extracted/Fin /game/gltf
+betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --include-all-lods --include-hidden
 ```
 
 ### `convert fin nif` — Convert FIN models to NIF
@@ -156,6 +156,32 @@ betateam convert fin nif /game/extracted/Fin /game/nif --mask E*.FIN
 ```
 
 `scripts/check-nif.py` checks the output against NifSkope's block definitions (`nif.xml`).
+
+### `fin dump` — Inspect FIN models
+
+Dumps the block tree of a `.FIN` file, with every field, as a text tree or as JSON. A single file goes to the terminal
+unless `--output` is given. A directory is dumped into one `.txt` or `.json` file per model; a file that fails to
+read is reported and the rest carry on.
+
+```
+betateam fin dump <INPUT> [--output <path>] [--json] [--full] [--mask <pattern>]
+```
+
+| Argument / Option | Description                                                    | Default |
+|-------------------|----------------------------------------------------------------|---------|
+| `INPUT`           | A `.FIN` file, or a directory of them                          | —       |
+| `-o`, `--output`  | Output file, or output directory (required for a directory)    | stdout  |
+| `--json`          | Write JSON instead of a text tree                              | off     |
+| `--full`          | Write every array and key value instead of a summary           | off     |
+| `-m`, `--mask`    | File glob pattern when `INPUT` is a directory                  | `*.FIN` |
+
+Examples:
+
+```bash
+betateam fin dump /game/extracted/Fin/U0207.FIN
+betateam fin dump /game/extracted/Fin/U0207.FIN --json --full -o U0207.json
+betateam fin dump /game/extracted/Fin -o /game/dumps --json
+```
 
 ## Reverse Engineering Setup
 

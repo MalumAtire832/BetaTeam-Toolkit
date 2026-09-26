@@ -15,7 +15,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
                 .Byte(1)                                // make shadow
                 .Byte(0)                                // prop
                 .Floats(0.5f)                           // shadow multiplier
-                .UInt32(9)                              // unknown
+                .Floats(122500)                         // LOD distance squared
                 .Int32(2)                               // skills
                 .CString("neutral").Floats(0, 1)        // name, start, end
                 .Byte(0)                                // no sound
@@ -52,7 +52,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
             Assert.True(shared.MakeShadow);
             Assert.False(shared.IsProp);
             Assert.Equal(0.5f, shared.ShadowMultiplier);
-            Assert.Equal(9u, shared.Unknown74);
+            Assert.Equal(122500f, shared.LodDistanceSquared);
 
             Assert.Equal(2, shared.Skills.Count);
             var neutral = shared.Skills[0];

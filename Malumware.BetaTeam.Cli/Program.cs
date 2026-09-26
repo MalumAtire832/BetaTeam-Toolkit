@@ -38,6 +38,11 @@ namespace Malumware.BetaTeam.Cli
                     {
                         fin.SetDescription("Convert FIN model files.");
 
+                        fin.AddCommand<FinToGltfCommand>("gltf")
+                            .WithDescription("Convert FIN model files in a directory to binary glTF (.glb), for importing into Blender.")
+                            .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf")
+                            .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf", "--mask", "U*.FIN", "--include-all-lods", "--include-hidden");
+
                         fin.AddCommand<FinToNifCommand>("nif")
                             .WithDescription("Convert FIN files to NIF (NetImmerse 4.0.0.2) for viewing in NifSkope.")
                             .WithExample("convert", "fin", "nif", "/game/extracted/Fin/U0207.FIN", "/game/nif/U0207.nif")

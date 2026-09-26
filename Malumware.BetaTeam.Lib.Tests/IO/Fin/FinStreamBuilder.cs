@@ -96,7 +96,12 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         // The NiAVObject part after NiObject: identity transform, no properties, no bounding volume
         public FinStreamBuilder NiAVObjectFields(params uint[] properties)
         {
-            return Byte(0)
+            return NiAVObjectFields(false, properties);
+        }
+
+        public FinStreamBuilder NiAVObjectFields(bool appCulled, params uint[] properties)
+        {
+            return Byte(appCulled ? (byte)1 : (byte)0)
                 .Floats(0, 0, 0)
                 .Floats(1, 0, 0, 0, 1, 0, 0, 0, 1)
                 .Floats(1)
