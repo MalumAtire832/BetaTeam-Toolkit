@@ -8,7 +8,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
     public class DDActorSharedData : NiObject
     {
         public string? Description { get; private set; }
-        public string? Unknown14 { get; private set; }
+        // The behaviour DLL (in Bhvr.pac) that holds the object's code, without ".dll". When absent, the engine's
+        // LoadActorDLL uses the type name, so objects without code of their own can share another object's DLL.
+        public string? BehaviorName { get; private set; }
         public bool MakeShadow { get; private set; }
         public bool IsProp { get; private set; }
         public float ShadowMultiplier { get; private set; }
@@ -21,7 +23,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
         {
             base.Load(reader);
             Description = reader.ReadCString();
-            Unknown14 = reader.ReadCString();
+            BehaviorName = reader.ReadCString();
             MakeShadow = reader.ReadByte() != 0;
             IsProp = reader.ReadByte() != 0;
             ShadowMultiplier = reader.ReadSingle();

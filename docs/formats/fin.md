@@ -420,13 +420,18 @@ the same way: a full `NiNode`, followed by one field.
 
 The actor is one placed instance; the shared data is what all instances of that kind of object have in common.
 
+The code that makes an object behave lives in a DLL in `Bhvr.pac`. The game loads the DLL named by the shared data's
+behaviour field, or the one named after the object itself when the field is empty. That lets objects share code: all
+54 environments use `tl0019`, the six `T0011`–`T0016` objects use `t0011`, and a few units reuse another unit's
+behaviour (`U0209` runs `u0165`).
+
 ### DDActorSharedData
 
 | Type          | Field             | Meaning                                                                         |
 |---------------|-------------------|---------------------------------------------------------------------------------|
 | (`NiObject`)  | name              | The object's type name, which is its ID (`U0001`, `OG9997`)                      |
 | C string      | description       | A readable description (`Dummy Object`)                                          |
-| C string      | (unknown)         | Stored by the game, but nothing was found that reads it                          |
+| C string      | behaviour         | The behaviour DLL with the object's code (see below)                             |
 | `bool`        | make shadow       | Whether the object casts a shadow                                                |
 | `bool`        | prop              | Whether the object is a prop rather than a full game object                      |
 | `f32`         | shadow multiplier | Strength or size of the shadow (the game reads it as a multiplier)              |

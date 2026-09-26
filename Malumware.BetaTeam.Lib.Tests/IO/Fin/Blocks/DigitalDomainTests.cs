@@ -11,7 +11,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
         {
             return builder.SizedString("DDActorSharedData").NiObject(linkId, "U0001")
                 .CString("Test unit")                   // description
-                .CString(null)                          // unknown
+                .CString(null)                          // behaviour DLL: none, use the type name
                 .Byte(1)                                // make shadow
                 .Byte(0)                                // prop
                 .Floats(0.5f)                           // shadow multiplier
@@ -48,7 +48,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
             // Assert
             Assert.Equal("U0001", shared.Name);
             Assert.Equal("Test unit", shared.Description);
-            Assert.Null(shared.Unknown14);
+            Assert.Null(shared.BehaviorName);
             Assert.True(shared.MakeShadow);
             Assert.False(shared.IsProp);
             Assert.Equal(0.5f, shared.ShadowMultiplier);
