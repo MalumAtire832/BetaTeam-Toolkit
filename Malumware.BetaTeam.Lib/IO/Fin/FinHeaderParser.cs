@@ -23,7 +23,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
                 throw new InvalidDataException($"Not a FIN file: invalid version \"{digits}\"");
             }
 
-            var header = new FinHeader(int.Parse(digits), line.Length + 1);
+            if (!int.TryParse(digits, out var version))
+            {
+                throw new InvalidDataException($"Not a FIN file: version \"{digits}\" is out of range");
+            }
+
+            var header = new FinHeader(version, line.Length + 1);
             if (!header.IsValid)
             {
                 throw new InvalidDataException(

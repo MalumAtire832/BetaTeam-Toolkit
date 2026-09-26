@@ -11,9 +11,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
         private const uint BARY_MORPH = 5;
         private const uint CUBIC_MORPH = 6;
 
-        // The smallest key of each kind, used to reject counts that can't fit in the file. Float keys of the abstract
-        // morph type take no bytes at all, so their count is only held to the file size.
-        private const int MIN_FLOAT_KEY_SIZE = 1;
+        // The smallest key of each kind, used to reject counts that can't fit in the file
+        private const int MIN_FLOAT_KEY_SIZE = 8;
         private const int MIN_POS_KEY_SIZE = 16;
         private const int MIN_ROT_KEY_SIZE = 44;
 
@@ -58,6 +57,13 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
         public static FinKeyGroup<FinFloatKey> ReadFloatKeys(FinBlockReader reader, int count, uint type)
         {
             var offset = reader.Position;
+            if (type == MORPH && count > 0)
+            {
+                // The engine registers a loader for the abstract morph key that reads nothing and creates nothing.
+                // No shipped file uses it, and the keys would take no bytes, so a count could only cost memory.
+                throw new InvalidDataException($"Unsupported float key type {type} with {count} keys at offset 0x{offset:X}");
+            }
+
             var keys = reader.ReadArray(count, r => ReadFloatKey(r, type, offset));
             return new FinKeyGroup<FinFloatKey>(type, keys);
         }
@@ -76,14 +82,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             return new FinKeyGroup<FinRotKey>(type, keys);
         }
 
-        private static FinFloatKey? ReadFloatKey(FinBlockReader reader, uint type, long offset)
+        private static FinFloatKey ReadFloatKey(FinBlockReader reader, uint type, long offset)
         {
-            if (type == MORPH)
-            {
-                // The engine registers a loader for the abstract morph key that creates nothing and reads nothing
-                return null;
-            }
-
             if (type is not (LINEAR or BEZIER or TCB or BARY_MORPH or CUBIC_MORPH))
             {
                 throw UnknownType("float", type, offset);

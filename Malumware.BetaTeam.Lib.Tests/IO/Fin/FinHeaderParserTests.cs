@@ -26,6 +26,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         [InlineData("Dweezil 23 \n")]
         [InlineData("Dweezil 2x\n")]
         [InlineData("Dweezil 23")]
+        [InlineData("Dweezil 99999999999\n")]
         public void Parse_ThrowsInvalidDataException_WhenLineIsMalformed(string text)
         {
             // Arrange

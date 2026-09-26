@@ -301,9 +301,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
         }
 
         [Fact]
-        public void Read_ReadsNoBytes_WhenMorphKeyTypeIsTheAbstractBase()
+        public void Read_ThrowsInvalidDataException_WhenAbstractMorphKeysHaveCount()
         {
-            // Arrange
+            // Arrange: type 4 keys take no bytes, so an unchecked count would only cost memory
             var builder = new FinStreamBuilder().Header().SizedString("Ni3dsMorphShape").NiObject(0x10);
             builder = Core(TriShapeFields(builder))
                 .Byte(0).Byte(0)
@@ -313,10 +313,31 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Blocks
                 .UInt32(4);                                             // NiMorphKey: the engine creates nothing
 
             // Act
+            var act = () => Read(builder);
+
+            // Assert
+            var exception = Assert.Throws<InvalidDataException>(act);
+            Assert.Contains("key type 4", exception.Message);
+        }
+
+        [Fact]
+        public void Read_ReturnsEmptyKeys_WhenAbstractMorphKeysHaveNoCount()
+        {
+            // Arrange
+            var builder = new FinStreamBuilder().Header().SizedString("Ni3dsMorphShape").NiObject(0x10);
+            builder = Core(TriShapeFields(builder))
+                .Byte(0).Byte(0)
+                .Int32(0)                                               // target count
+                .Int32(0)                                               // key count
+                .Floats(0, 0, 0, 0)
+                .UInt32(4);
+
+            // Act
             var morph = Assert.IsType<Ni3dsMorphShape>(Assert.Single(Read(builder).Objects));
 
             // Assert
-            Assert.Equal([null, null], morph.Keys.Keys);
+            Assert.Equal(4u, morph.Keys.KeyType);
+            Assert.Empty(morph.Keys.Keys);
         }
     }
 }

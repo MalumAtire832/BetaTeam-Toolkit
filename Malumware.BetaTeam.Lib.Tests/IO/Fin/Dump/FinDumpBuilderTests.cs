@@ -141,6 +141,47 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
             Assert.Equal(0x20u, Assert.Single(dump.Unreferenced).LinkId);
         }
 
+        // A chain of blocks, each listing the next; every link adds a list and an object to the dump
+        private static FinStreamBuilder Chain(int length)
+        {
+            var builder = new FinStreamBuilder().Header().TopLevel();
+            for (uint i = 1; i <= length; i++)
+            {
+                var next = i < length ? new[] { i + 1 } : [];
+                builder = builder.SizedString("TestListBlock").NiObject(i).Refs(next).UInt32(0);
+            }
+            return builder;
+        }
+
+        [Fact]
+        public void Build_ThrowsInvalidDataException_WhenBlocksNestTooDeep()
+        {
+            // Arrange
+            var file = FinReader.Read("TEST", Chain(FinDumpBuilder.MAX_DEPTH).EndOfFile().ToArray(), TestRegistry.Create());
+
+            // Act
+            var act = () => FinDumpBuilder.Build(file);
+
+            // Assert
+            var exception = Assert.Throws<InvalidDataException>(act);
+            Assert.Contains("nested", exception.Message);
+        }
+
+        [Fact]
+        public void Build_ProducesJson_WhenBlocksNestJustWithinTheLimit()
+        {
+            // Arrange: two dump levels per block, plus the root
+            var file = FinReader.Read("TEST", Chain(FinDumpBuilder.MAX_DEPTH / 2 - 1).EndOfFile().ToArray(), TestRegistry.Create());
+            var dump = FinDumpBuilder.Build(file);
+
+            // Act
+            var act = () => FinJsonDumpWriter.Write(dump, new MemoryStream());
+
+            // Assert
+            var exception = Record.Exception(act);
+            Assert.Null(exception);
+        }
+
         [Fact]
         public void Build_MarksBlockLists_AsNotData()
         {
