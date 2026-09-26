@@ -88,8 +88,11 @@ and FIN's blocks don't match 3.1's anyway (name and extra data on `NiObject`, ge
   extra data keeps the original name. Empty child slots stay empty, so a `NiLODNode`'s ranges still line up.
 - `AppCulled` becomes NIF's hidden flag. A billboard's mode goes into flag bits 5 and 6, taking FIN's `0` to `2` to be
   NIF's billboard modes (*inferred*).
-- The rotation's nine floats are copied in file order. That is right if both engines save the matrix the same way,
-  which is *inferred* (#8).
+- The rotation's nine floats are copied in file order: FIN stores the rows of the matrix (see
+  [NiAVObject](#niavobject)), as later NetImmerse versions do.
+- A skinned mesh (`Ni3dsSkin`) is written the way the game draws it, like the glTF export does: each vertex is placed
+  by the bones that move it, at rest (see [Skinned meshes](#skinned-meshes)). The stored vertices, which are in
+  another frame, aren't used. The bone weights themselves aren't exported, so the mesh doesn't follow its bones.
 - Texture coordinates lose their third component. Triangle planes are dropped: NIF has none, and they follow from
   the triangles.
 - NIF keeps all texture settings in one `NiTexturingProperty`, where FIN spreads them over `NiTextureProperty`,

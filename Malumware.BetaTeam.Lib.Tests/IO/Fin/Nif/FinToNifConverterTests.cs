@@ -50,6 +50,49 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Nif
             return builder.SizedString("NiImage").NiObject(linkId).Byte(1).CString(fileName).UInt32(0);
         }
 
+        // A bone with the given transform and no animation keys
+        private static FinStreamBuilder Bone(
+            FinStreamBuilder builder, uint linkId, string name, float[] translation, float[] rotation, uint[] children)
+        {
+            return builder.SizedString("Ni3dsBone").NiObject(linkId, name)
+                .Byte(0)
+                .Floats(translation)
+                .Floats(rotation)
+                .Floats(1)
+                .Floats(0, 0, 0)
+                .Refs()
+                .UInt32(0)
+                .UInt32(0)
+                .NiNodeFields(children, [])
+                .UInt32(0).Byte(0).Byte(0).Byte(0).Byte(1).UInt32(0)    // animation settings
+                .Floats(0, 1, 0, 0, 0)
+                .Int32(0).Int32(0).Int32(0).Int32(0);                   // no rotation, position, scale or visibility keys
+        }
+
+        // A triangle whose stored vertices are far off, skinned to the bones 0x20 (vertex 0) and 0x30 (vertices 1, 2)
+        private static FinStreamBuilder Skin(FinStreamBuilder builder, uint linkId)
+        {
+            return builder.SizedString("Ni3dsSkin").NiObject(linkId, "Skin")
+                .NiAVObjectFields()
+                .UInt16(3)                                                  // vertex count
+                .UInt32(PRESENT).Floats(100, 0, 0, 100, 1, 0, 100, 0, 1)    // stored vertices, never drawn
+                .UInt32(PRESENT).Floats(0, 0, 1, 1, 0, 0, 0, 0, 1)          // normals
+                .Floats(0, 0, 0, 200)                                       // bound
+                .UInt16(1).UInt16(0)                                        // triangles, texture sets
+                .UInt32(0).UInt32(0).UInt32(0)                              // no texture coordinates, colours, planes
+                .UInt16(0).UInt16(1).UInt16(2)
+                .Byte(0)                                                    // unknown
+                .Byte(1)                                                    // has skin data
+                .UInt16(1).Floats(1, 0, 0, 0).UInt32(0x20)
+                .UInt16(1).Floats(0.25f, 1, 0, 0).UInt32(0x30)              // a single bone counts in full
+                .UInt16(1).Floats(1, 0, 1, 0).UInt32(0x30);
+        }
+
+        private static Vector3 Round(Vector3 value)
+        {
+            return new Vector3(MathF.Round(value.X, 4), MathF.Round(value.Y, 4), MathF.Round(value.Z, 4));
+        }
+
         private static IEnumerable<string> Strings(NiObjectNET block)
         {
             return block
@@ -374,6 +417,34 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Nif
             var data = Assert.IsType<NiTriShapeData>(shape.Data);
             Assert.Equal(3, data.VertexCount);
             Assert.Empty(data.Triangles);
+        }
+
+        [Fact]
+        public void Convert_PosesVerticesByTheirBones_WhenShapeIsSkinned()
+        {
+            // Arrange
+            var builder = new FinStreamBuilder().Header().TopLevel();
+            Node(builder, 0x10, [0x20, 0x40]);
+            Bone(builder, 0x20, "Upper", [0, 0, 10], [0, -1, 0, 1, 0, 0, 0, 0, 1], [0x30]);    // turned 90° about Z
+            Bone(builder, 0x30, "Lower", [2, 0, 0], [1, 0, 0, 0, 1, 0, 0, 0, 1], []);
+            Node(builder, 0x40, [0x50]);
+            Skin(builder, 0x50);
+
+            // Act
+            var conversion = Convert(builder);
+
+            // Assert
+            var root = Assert.IsType<NiNode>(Assert.Single(conversion.File.Roots));
+            var parent = Assert.IsType<NiNode>(root.Children[1]);
+            var shape = Assert.IsType<NiTriShape>(Assert.Single(parent.Children));
+            var data = Assert.IsType<NiTriShapeData>(shape.Data);
+            var vertices = data.Vertices!
+                .Select(Round)
+                .ToArray();
+            Assert.Equal([new Vector3(0, 0, 10), new Vector3(0, 3, 10), new Vector3(-1, 2, 10)], vertices);
+            Assert.Equal(Vector3.UnitY, Round(data.Normals![1]));
+            Assert.True(data.BoundRadius < 10);
+            Assert.Contains(conversion.Warnings, e => e.StartsWith("Ni3dsSkin bone weights aren't exported"));
         }
 
         [Fact]

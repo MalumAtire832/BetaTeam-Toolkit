@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks.BoundingVolumes;
+using Malumware.BetaTeam.Lib.IO.Fin.Gltf;
 using Malumware.BetaTeam.Lib.IO.Nif;
 using Malumware.BetaTeam.Lib.IO.Nif.Blocks.BoundingVolumes;
 using FinBlocks = Malumware.BetaTeam.Lib.IO.Fin.Blocks;
@@ -44,9 +45,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
             private readonly Dictionary<FinBlocks.NiProperty, NifBlocks.NiProperty?> _properties = new(ReferenceEqualityComparer.Instance);
             private readonly Dictionary<FinBlocks.NiImage, NifBlocks.NiSourceTexture> _images = new(ReferenceEqualityComparer.Instance);
             private readonly Dictionary<FinNifTextureState, NifBlocks.NiTexturingProperty> _texturing = [];
+            private readonly Dictionary<FinBlocks.NiAVObject, FinBlocks.NiNode> _parents = new(ReferenceEqualityComparer.Instance);
 
             public FinNifConversion Run(FinFile file)
             {
+                FindParents(file);
                 var roots = new List<NifBlocks.NiObject>();
                 foreach (var topLevelObject in file.TopLevelObjects)
                 {
@@ -73,6 +76,21 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 }
 
                 return new FinNifConversion(new NifFile(roots), _warnings.ToList());
+            }
+
+            // Skinned meshes are placed by their bones, which are found by walking up from each bone
+            private void FindParents(FinFile file)
+            {
+                foreach (var node in file.Objects.OfType<FinBlocks.NiNode>())
+                {
+                    foreach (var child in node.Children)
+                    {
+                        if (child.Target is not null)
+                        {
+                            _parents.TryAdd(child.Target, node);
+                        }
+                    }
+                }
             }
 
             private static string DescribeUnexported(FinBlocks.NiObject block)
@@ -188,7 +206,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 }
             }
 
-            // Copied in file order, which assumes both engines save NiMatrix3 the same way (inferred)
+            // Copied in file order: FIN stores the rows of NiMatrix3, as the later NetImmerse versions NIF comes from do
             private static NifMatrix33 ConvertMatrix(FinMatrix3 m)
             {
                 return new NifMatrix33(m.M11, m.M12, m.M13, m.M21, m.M22, m.M23, m.M31, m.M32, m.M33);
@@ -338,7 +356,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 switch (source)
                 {
                     case FinBlocks.Ni3dsSkin:
-                        _warnings.Add("Ni3dsSkin bone weights aren't exported; the mesh keeps its stored pose");
+                        _warnings.Add("Ni3dsSkin bone weights aren't exported; the mesh is posed by its bones at rest");
                         break;
                     case FinBlocks.Ni3dsMorphShape:
                         _warnings.Add("Ni3dsMorphShape morph targets aren't exported; the mesh keeps its base vertices");
@@ -368,6 +386,16 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     Triangles = triangles,
                 };
 
+                // The game never draws a skin's stored vertices, which are in another frame: it builds each vertex from
+                // its offset to the bones that move it. The glTF export does the same, so its rest pose is reused.
+                if (source is FinBlocks.Ni3dsSkin { SkinVertices: not null } skin)
+                {
+                    var pose = FinGltfSkin.Create(skin, _parents);
+                    data.Vertices = pose.Vertices;
+                    data.Normals = pose.Normals;
+                    (data.BoundCenter, data.BoundRadius) = BoundingSphere(pose.Vertices);
+                }
+
                 // NIF coordinates have two components; FIN's third isn't understood yet
                 var textureSets = source.TextureSets ?? [];
                 foreach (var textureSet in textureSets.Take(NifBlocks.NiGeometryData.MAX_UV_SETS))
@@ -383,6 +411,22 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 }
 
                 target.Data = data;
+            }
+
+            // A sphere around the vertices' bounding box; the stored bound is for the stored vertices
+            private static (Vector3 Center, float Radius) BoundingSphere(Vector3[] vertices)
+            {
+                if (vertices.Length == 0)
+                {
+                    return (Vector3.Zero, 0);
+                }
+
+                var min = vertices.Aggregate(Vector3.Min);
+                var max = vertices.Aggregate(Vector3.Max);
+                var center = (min + max) / 2;
+                var radius = vertices.Max(e => Vector3.Distance(center, e));
+
+                return (center, radius);
             }
 
             private FinNifTextureState ConvertProperties(FinBlocks.NiAVObject source, NifBlocks.NiAVObject target, FinNifTextureState inherited)
