@@ -9,7 +9,9 @@ namespace Malumware.BetaTeam.Cli.Commands.Unpack
         protected override int Execute(CommandContext context, UnpackCommandSettings settings, CancellationToken cancellationToken)
         {
             var reader = new PacArchiveReader();
-            var files = Directory.EnumerateFiles(settings.InputDirectoryPath, settings.Mask).ToList();
+            var files = Directory
+                .EnumerateFiles(settings.InputDirectoryPath, settings.Mask)
+                .ToList();
 
             if (files.Count == 0)
             {
@@ -17,7 +19,9 @@ namespace Malumware.BetaTeam.Cli.Commands.Unpack
                 return 0;
             }
 
-            var archives = files.Select(f => reader.Read(f)).ToList();
+            var archives = files
+                .Select(f => reader.Read(f))
+                .ToList();
             var totalFiles = archives.Sum(a => (int)a.Entries.Count);
 
             AnsiConsole.Progress()

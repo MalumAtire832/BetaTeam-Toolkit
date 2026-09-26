@@ -10,7 +10,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
         {
             // Arrange
             var reader = new PacArchiveReader();
-            var archivePaths = GameDataPaths.Archives().ToList();
+            var archivePaths = GameDataPaths
+                .Archives()
+                .ToList();
 
             // Act & Assert
             Assert.NotEmpty(archivePaths);

@@ -10,7 +10,9 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Dds
         {
             var reader = new DdsAudioReader();
             var converter = new DdsAudioConverter();
-            var files = Directory.EnumerateFiles(settings.InputDirectoryPath, settings.Mask).ToList();
+            var files = Directory
+                .EnumerateFiles(settings.InputDirectoryPath, settings.Mask)
+                .ToList();
 
             if (files.Count == 0)
             {
