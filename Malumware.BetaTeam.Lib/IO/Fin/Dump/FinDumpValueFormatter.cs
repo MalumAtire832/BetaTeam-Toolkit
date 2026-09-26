@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Numerics;
-using System.Reflection;
 
 namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
 {
@@ -29,10 +28,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
         // Record structs (colours, triangles, ranges) as their property values in declaration order
         private static string FormatStruct(object value)
         {
-            var values = value.GetType()
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                .Where(property => property.GetIndexParameters().Length == 0)
-                .OrderBy(property => property.MetadataToken)
+            var values = FinReflection.DeclaredProperties(value.GetType())
                 .Select(property => Format(property.GetValue(value)));
             return $"({string.Join(", ", values)})";
         }
