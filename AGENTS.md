@@ -122,6 +122,8 @@ Rules for format work:
 
 - Branch from `master`. Split work into focused commits that each build and pass tests on their own.
 - Commit messages: a short imperative subject, then a body explaining what changed and why.
+- After a set of work, and before opening a PR, check that `README.md` and `docs/README.md` still match the code:
+  formats and their status, CLI commands and options, and examples. Update the format status table above as well.
 - Open PRs with `gh` against `master`. Include a summary, the reasoning for each change, how it was verified, and any
   breaking API changes.
 - Design and plan documents are working files and stay out of the repo (`docs/superpowers/` is ignored). Record the
