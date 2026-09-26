@@ -44,6 +44,7 @@ namespace Malumware.BetaTeam.Cli
                         .WithExample("fin", "dump", "/game/extracted/Fin", "-o", "/game/dumps", "--json");
                 });
             });
+
             return app.Run(args);
         }
     }

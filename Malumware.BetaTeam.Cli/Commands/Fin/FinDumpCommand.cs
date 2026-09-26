@@ -24,13 +24,16 @@ namespace Malumware.BetaTeam.Cli.Commands.Fin
                 if (settings.OutputPath is null)
                 {
                     // Straight to stdout, so Spectre doesn't treat brackets in the dump as markup
-                    using var stdout = Console.OpenStandardOutput();
-                    stdout.Write(bytes);
+                    using (var stdout = Console.OpenStandardOutput())
+                    {
+                        stdout.Write(bytes);
+                    }
                 }
                 else
                 {
                     File.WriteAllBytes(settings.OutputPath, bytes);
                 }
+
                 return 0;
             }
             catch (Exception e) when (IsFileError(e))
@@ -42,7 +45,10 @@ namespace Malumware.BetaTeam.Cli.Commands.Fin
 
         private static int DumpDirectory(FinDumpCommandSettings settings)
         {
-            var files = Directory.EnumerateFiles(settings.InputPath, settings.Mask, ENUMERATION_OPTIONS).Order().ToList();
+            var files = Directory
+                .EnumerateFiles(settings.InputPath, settings.Mask, ENUMERATION_OPTIONS)
+                .Order()
+                .ToList();
             if (files.Count == 0)
             {
                 AnsiConsole.MarkupLine("[yellow]No FIN files found.[/]");
@@ -79,6 +85,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Fin
             }
 
             AnsiConsole.MarkupLine($"[green]Done.[/] Dumped {files.Count - failed} of {files.Count} files.");
+
             return failed == 0 ? 0 : 1;
         }
 
@@ -91,17 +98,22 @@ namespace Malumware.BetaTeam.Cli.Commands.Fin
         private static byte[] Render(string filePath, FinDumpCommandSettings settings)
         {
             var dump = FinDumpBuilder.Build(new FinReader().Read(filePath));
-            using var output = new MemoryStream();
-            if (settings.Json)
+            using (var output = new MemoryStream())
             {
-                FinJsonDumpWriter.Write(dump, output);
+                if (settings.Json)
+                {
+                    FinJsonDumpWriter.Write(dump, output);
+                }
+                else
+                {
+                    using (var writer = new StreamWriter(output, leaveOpen: true))
+                    {
+                        FinTextDumpWriter.Write(dump, writer, settings.Full);
+                    }
+                }
+
+                return output.ToArray();
             }
-            else
-            {
-                using var writer = new StreamWriter(output, leaveOpen: true);
-                FinTextDumpWriter.Write(dump, writer, settings.Full);
-            }
-            return output.ToArray();
         }
     }
 }

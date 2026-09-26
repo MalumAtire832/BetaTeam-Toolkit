@@ -19,6 +19,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
         {
             var writer = new StringWriter();
             FinTextDumpWriter.Write(dump, writer, full);
+
             return writer.ToString();
         }
 
@@ -26,6 +27,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
         {
             var stream = new MemoryStream();
             FinJsonDumpWriter.Write(dump, stream);
+
             return JsonDocument.Parse(stream.ToArray()).RootElement;
         }
 
@@ -215,7 +217,11 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
                 new FinDumpValue("Rotation", FinMatrix3.Identity))));
 
             // Assert
-            Assert.Equal([1f, 2f, 3f], fields.GetProperty("Translation").EnumerateArray().Select(e => e.GetSingle()));
+            var translation = fields
+                .GetProperty("Translation")
+                .EnumerateArray()
+                .Select(e => e.GetSingle());
+            Assert.Equal([1f, 2f, 3f], translation);
             Assert.Equal(9, fields.GetProperty("Rotation").GetArrayLength());
         }
 
