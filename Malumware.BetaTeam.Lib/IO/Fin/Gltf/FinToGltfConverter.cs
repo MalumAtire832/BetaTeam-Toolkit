@@ -28,7 +28,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
         public byte[] ToGlb(FinFile file)
         {
-            return ToModel(file).WriteGLB().ToArray();
+            return ToModel(file)
+                .WriteGLB()
+                .ToArray();
         }
 
         public void Convert(FinFile file, string outputPath)
@@ -75,6 +77,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     AddNode(root, block, 0);
                 }
+
                 return _model;
             }
 
@@ -100,6 +103,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 var free = _file.Objects
                     .OfType<NiAVObject>()
                     .Where(e => !children.Contains(e) && !roots.Contains(e));
+
                 return roots.Concat(free);
             }
 
@@ -180,6 +184,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
 
                 var level = MostDetailedLevel(lod);
+
                 return level is null ? children : children.Where(e => e.Index == level);
             }
 
@@ -195,6 +200,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                         best = i;
                     }
                 }
+
                 return best;
             }
 
@@ -205,6 +211,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     mesh = CreateMesh(geometry);
                     _meshes[geometry] = mesh;
                 }
+
                 return mesh;
             }
 
@@ -216,7 +223,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
 
                 var mesh = _model.CreateMesh(geometry.Name ?? geometry.ClassName);
-                var primitive = mesh.CreatePrimitive()
+                var primitive = mesh
+                    .CreatePrimitive()
                     .WithVertexAccessor("POSITION", RequireFinite(geometry, "vertex", vertices));
 
                 if (NormalizeNormals(geometry.Normals) is { } normals)
@@ -252,6 +260,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     // No triangles (a DDCorona, whose quad the engine builds when drawing): keep the vertices as points
                     primitive.WithIndicesAutomatic(PrimitiveType.POINTS);
                 }
+
                 return mesh;
             }
 
@@ -271,6 +280,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     indices[i * 3 + 1] = triangle.B;
                     indices[i * 3 + 2] = triangle.C;
                 }
+
                 return indices;
             }
 
@@ -293,6 +303,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     }
                     result[i] = normals[i] / length;
                 }
+
                 return result;
             }
 
@@ -323,7 +334,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     .WithPBRMetallicRoughness(Vector4.One, null, null, 0, 1);
             }
 
-            private static T[] RequireFinite<T>(NiObject block, string what, T[] values) where T : struct
+            private static T[] RequireFinite<T>(NiObject block, string what, T[] values)
+                where T : struct
             {
                 foreach (var value in values)
                 {
@@ -339,6 +351,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                         throw new InvalidDataException($"{Describe(block)} has a {what} that isn't a finite number");
                     }
                 }
+
                 return values;
             }
         }

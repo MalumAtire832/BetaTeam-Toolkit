@@ -34,6 +34,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 // A mirrored rotation is a proper rotation after a flip along one axis, which glTF expresses as a
                 // negative scale. In row-vector form the flip comes first, so undo it on the matrix's third row.
                 var unmirrored = rotation with { M31 = -rotation.M31, M32 = -rotation.M32, M33 = -rotation.M33 };
+
                 return new AffineTransform(new Vector3(scale, scale, -scale), ToQuaternion(unmirrored), translation);
             }
 
@@ -43,6 +44,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             {
                 throw new InvalidDataException($"{FinToGltfConverter.Describe(block)} has a rotation matrix that collapses it to a plane");
             }
+
             return new AffineTransform(matrix);
         }
 
@@ -77,6 +79,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     }
                 }
             }
+
             return true;
         }
 
@@ -97,6 +100,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     }
                 }
             }
+
             return true;
         }
     }

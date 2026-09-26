@@ -72,6 +72,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             _expanding.Add(block);
             AddFields(result, block, isNode, depth);
             _expanding.Remove(block);
+
             return result;
         }
 
@@ -114,6 +115,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 case NiExtraData extraData:
                     var result = new JsonObject { ["class"] = extraData.ClassName };
                     AddFields(result, extraData, false, depth);
+
                     return result;
                 case string text:
                     return JsonValue.Create(text);
@@ -144,6 +146,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     {
                         array.Add(BuildValue(item, elementType, depth + 1));
                     }
+
                     return array;
                 default:
                     return BuildObject(value, declaredType, depth);
@@ -171,10 +174,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                         result[property.Name] = node;
                     }
                 }
+
                 return result;
             }
 
             AddFields(result, value, false, depth);
+
             return result;
         }
 
@@ -189,6 +194,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             {
                 return BuildBlock(target, false, depth);
             }
+
             return new JsonObject
             {
                 ["ref"] = FormatLinkId(target.LinkId),
@@ -217,6 +223,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 .GetInterfaces()
                 .Append(type)
                 .FirstOrDefault(e => e.IsGenericType && e.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
             return enumerable?.GetGenericArguments()[0] ?? typeof(object);
         }
     }

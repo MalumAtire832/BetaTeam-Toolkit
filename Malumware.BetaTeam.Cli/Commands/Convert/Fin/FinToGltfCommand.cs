@@ -39,7 +39,8 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
                 .AddColumn("[grey]Input[/]")
                 .AddColumn("[grey]Output[/]");
 
-            AnsiConsole.Live(table)
+            AnsiConsole
+                .Live(table)
                 .Start(ctx =>
                 {
                     foreach (var filePath in files)
@@ -63,6 +64,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
                 });
 
             AnsiConsole.MarkupLine($"[green]Done.[/] Converted {files.Count - failed} of {files.Count} files.");
+
             return failed == 0 ? 0 : 1;
         }
     }

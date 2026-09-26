@@ -24,7 +24,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             // Arrange
             var failures = new List<string>();
             var settings = new ReadSettings { Validation = ValidationMode.Strict };
-            var files = FinGameDataTests.FinFiles().ToList();
+            var files = FinGameDataTests
+                .FinFiles()
+                .ToList();
             var meshesWithoutNormals = 0;
 
             // Act

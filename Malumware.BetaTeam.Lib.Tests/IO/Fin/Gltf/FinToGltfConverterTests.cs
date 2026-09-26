@@ -91,10 +91,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
 
             var primitive = Assert.Single(box.Mesh.Primitives);
             Assert.Equal(PrimitiveType.TRIANGLES, primitive.DrawPrimitiveType);
-            Assert.Equal([Vector3.Zero, Vector3.UnitX, Vector3.UnitY], primitive.GetVertexAccessor("POSITION").AsVector3Array());
+            var positions = primitive
+                .GetVertexAccessor("POSITION")
+                .AsVector3Array();
+            Assert.Equal([Vector3.Zero, Vector3.UnitX, Vector3.UnitY], positions);
             Assert.Equal([0u, 1u, 2u], primitive.GetIndices());
-            Assert.False(Extras(box).ContainsKey("Vertices"));
-            Assert.Equal(0.75f, Extras(box)["BoundRadius"]!.GetValue<float>());
+            var extras = Extras(box);
+            Assert.False(extras.ContainsKey("Vertices"));
+            Assert.Equal(0.75f, extras["BoundRadius"]!.GetValue<float>());
         }
 
         [Fact]
@@ -107,9 +111,18 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             var primitive = Assert.Single(Convert(bytes).LogicalMeshes[0].Primitives);
 
             // Assert
-            Assert.Equal([Vector3.UnitZ, Vector3.UnitZ, Vector3.UnitZ], primitive.GetVertexAccessor("NORMAL").AsVector3Array());
-            Assert.Equal(new Vector4(0, 0, 1, 0.5f), primitive.GetVertexAccessor("COLOR_0").AsVector4Array()[2]);
-            Assert.Equal([Vector2.Zero, new Vector2(2, 0), new Vector2(0, -1)], primitive.GetVertexAccessor("TEXCOORD_0").AsVector2Array());
+            var normals = primitive
+                .GetVertexAccessor("NORMAL")
+                .AsVector3Array();
+            var colors = primitive
+                .GetVertexAccessor("COLOR_0")
+                .AsVector4Array();
+            var coordinates = primitive
+                .GetVertexAccessor("TEXCOORD_0")
+                .AsVector2Array();
+            Assert.Equal([Vector3.UnitZ, Vector3.UnitZ, Vector3.UnitZ], normals);
+            Assert.Equal(new Vector4(0, 0, 1, 0.5f), colors[2]);
+            Assert.Equal([Vector2.Zero, new Vector2(2, 0), new Vector2(0, -1)], coordinates);
             Assert.NotNull(primitive.Material);
         }
 
