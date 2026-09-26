@@ -44,6 +44,12 @@ sample rate, byte rate, block align, bits per sample, extra size).
 The converter wraps the raw PCM data in a standard RIFF/WAVE envelope to produce a valid `.wav` file.
 See [docs/formats/dds-audio.md](docs/formats/dds-audio.md).
 
+### String Tables
+All text the player reads lives in `.TXT` string tables in `Locale_en.pac`. They are Windows-1252 text files of
+`==Key==` tag lines, each followed by its value on the next lines, with `#` comments and backslash escapes. The game
+loads every table into one shared, case-insensitive lookup where the first occurrence of a key wins.
+See [docs/formats/string-tables.md](docs/formats/string-tables.md).
+
 ### FIN Models
 `.FIN` files hold every 3D object in the game: environments, units, level objects and characters. Each is a
 NetImmerse scene graph in the early, pre-NIF stream layout, extended with Digital Domain classes that carry an
