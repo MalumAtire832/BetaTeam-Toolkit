@@ -132,6 +132,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 }
 
                 _inProgress.Remove(source);
+
                 return target;
             }
 
@@ -153,6 +154,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     default:
                         _warnings.Add($"{source.ClassName} has no NIF equivalent and isn't exported");
                         _handled.Add(source);
+
                         return null;
                 }
             }
@@ -346,6 +348,15 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                         break;
                 }
 
+                var colors = source.Colors?
+                    .Select(e => new NifColor4(e.R, e.G, e.B, e.A))
+                    .ToArray();
+                // A corona has no triangles of its own: the engine builds them when drawing
+                var triangles = source is FinBlocks.NiTriShape shape
+                    ? shape.Triangles
+                        .Select(e => new NifTriangle(e.A, e.B, e.C))
+                        .ToArray()
+                    : [];
                 var data = new NifBlocks.NiTriShapeData
                 {
                     VertexCount = source.VertexCount,
@@ -353,18 +364,18 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     Normals = source.Normals,
                     BoundCenter = source.BoundCenter,
                     BoundRadius = source.BoundRadius,
-                    VertexColors = source.Colors?.Select(e => new NifColor4(e.R, e.G, e.B, e.A)).ToArray(),
-                    // A corona has no triangles of its own: the engine builds them when drawing
-                    Triangles = source is FinBlocks.NiTriShape shape
-                        ? shape.Triangles.Select(e => new NifTriangle(e.A, e.B, e.C)).ToArray()
-                        : [],
+                    VertexColors = colors,
+                    Triangles = triangles,
                 };
 
                 // NIF coordinates have two components; FIN's third isn't understood yet
                 var textureSets = source.TextureSets ?? [];
                 foreach (var textureSet in textureSets.Take(NifBlocks.NiGeometryData.MAX_UV_SETS))
                 {
-                    data.UvSets.Add(textureSet.Select(e => new Vector2(e.X, e.Y)).ToArray());
+                    var uvSet = textureSet
+                        .Select(e => new Vector2(e.X, e.Y))
+                        .ToArray();
+                    data.UvSets.Add(uvSet);
                 }
                 if (textureSets.Count > NifBlocks.NiGeometryData.MAX_UV_SETS)
                 {
@@ -410,6 +421,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 {
                     target.Properties.Add(GetTexturingProperty(textures));
                 }
+
                 return textures;
             }
 
@@ -453,6 +465,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
 
                 target.Name = source.Name ?? "";
                 CheckExtraData(source);
+
                 return target;
             }
 
@@ -480,6 +493,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 target.Flags = (ushort)(blend
                     | (sourceBlend << NifBlocks.NiAlphaProperty.SOURCE_BLEND_SHIFT)
                     | (destinationBlend << NifBlocks.NiAlphaProperty.DESTINATION_BLEND_SHIFT));
+
                 return target;
             }
 
@@ -489,6 +503,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
             {
                 var target = new NifBlocks.NiVertexColorProperty();
                 target.AddExtraData(new NifBlocks.NiStringExtraData($"ColorMode: {source.ColorMode}"));
+
                 return target;
             }
 
@@ -507,7 +522,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 {
                     target.Name = texture.Name ?? "";
                     CheckExtraData(texture);
-                    var images = texture.Images.Select(e => e.Target).ToList();
+                    var images = texture.Images
+                        .Select(e => e.Target)
+                        .ToList();
                     target.Textures[(int)NifBlocks.NifTextureSlot.Base] = new NifBlocks.NifTexDesc
                     {
                         Source = ConvertImage(PickImage(texture, images)),
@@ -542,6 +559,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 {
                     AddStages(multiTexture, target, nextSlot);
                 }
+
                 return target;
             }
 
@@ -595,6 +613,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     _warnings.Add($"Texture index {texture.Index} is outside its {images.Count} images; the first is used");
                     return images[0];
                 }
+
                 return null;
             }
 
@@ -610,6 +629,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     _warnings.Add($"Texture clamp mode {mode} has no NIF equivalent; wrapping is used");
                     return NifBlocks.NifTexDesc.CLAMP_WRAP_S_WRAP_T;
                 }
+
                 return mode.Value;
             }
 
@@ -624,6 +644,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     _warnings.Add($"Texture filter mode {mode} has no NIF equivalent; trilinear is used");
                     return NifBlocks.NifTexDesc.FILTER_TRILERP;
                 }
+
                 return mode.Value;
             }
 
@@ -651,6 +672,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 }
 
                 _images[image] = target;
+
                 return target;
             }
 
@@ -675,6 +697,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                             }
                             target.Volumes.Add(converted);
                         }
+
                         return target;
                     default:
                         return null;

@@ -17,7 +17,9 @@ namespace Malumware.BetaTeam.Lib.IO.Nif.Blocks
 
         internal override IEnumerable<NiObject?> GetLinks()
         {
-            return base.GetLinks().Concat(Properties);
+            return base
+                .GetLinks()
+                .Concat(Properties);
         }
 
         internal override void Write(NifWriter writer)

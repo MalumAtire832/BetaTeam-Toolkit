@@ -41,9 +41,16 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Nif
                     warnings[warning] = warnings.GetValueOrDefault(warning) + 1;
                 }
 
-                var finShapes = file.Objects.OfType<FinBlocks.NiTriBasedGeom>().ToList();
-                var nifShapes = conversion.File.CollectBlocks().OfType<NifBlocks.NiTriShape>().ToList();
-                var finTriangles = finShapes.OfType<FinBlocks.NiTriShape>().Sum(e => e.Triangles.Length);
+                var finShapes = file.Objects
+                    .OfType<FinBlocks.NiTriBasedGeom>()
+                    .ToList();
+                var nifShapes = conversion.File
+                    .CollectBlocks()
+                    .OfType<NifBlocks.NiTriShape>()
+                    .ToList();
+                var finTriangles = finShapes
+                    .OfType<FinBlocks.NiTriShape>()
+                    .Sum(e => e.Triangles.Length);
                 var nifTriangles = nifShapes.Sum(e => ((NifBlocks.NiTriShapeData)e.Data!).Triangles.Length);
                 if (finShapes.Count != nifShapes.Count || finTriangles != nifTriangles)
                 {

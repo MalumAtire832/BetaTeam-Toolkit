@@ -18,7 +18,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
 
         public IReadOnlyList<string> ToList()
         {
-            return _order.Select(e => _counts[e] == 1 ? e : $"{e} ({_counts[e]}x)").ToList();
+            return _order
+                .Select(e => _counts[e] == 1 ? e : $"{e} ({_counts[e]}x)")
+                .ToList();
         }
     }
 }

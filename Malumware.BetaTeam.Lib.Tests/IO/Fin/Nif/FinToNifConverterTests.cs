@@ -52,7 +52,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Nif
 
         private static IEnumerable<string> Strings(NiObjectNET block)
         {
-            return block.EnumerateExtraData().OfType<NiStringExtraData>().Select(e => e.Value);
+            return block
+                .EnumerateExtraData()
+                .OfType<NiStringExtraData>()
+                .Select(e => e.Value);
         }
 
         [Fact]

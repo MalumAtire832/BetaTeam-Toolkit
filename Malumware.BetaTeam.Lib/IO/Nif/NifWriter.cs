@@ -29,32 +29,36 @@ namespace Malumware.BetaTeam.Lib.IO.Nif
                 indices[blocks[i]] = i;
             }
 
-            using var binaryWriter = new BinaryWriter(stream, Encoding.Latin1, leaveOpen: true);
-            var writer = new NifWriter(binaryWriter, indices);
-
-            binaryWriter.Write(Encoding.ASCII.GetBytes(HEADER_STRING + "\n"));
-            binaryWriter.Write(VERSION);
-            binaryWriter.Write((uint)blocks.Count);
-
-            // Before version 5 there is no block type table: each block starts with its class name
-            foreach (var block in blocks)
+            using (var binaryWriter = new BinaryWriter(stream, Encoding.Latin1, leaveOpen: true))
             {
-                writer.WriteSizedString(block.ClassName);
-                block.Write(writer);
-            }
+                var writer = new NifWriter(binaryWriter, indices);
 
-            binaryWriter.Write((uint)file.Roots.Count);
-            foreach (var root in file.Roots)
-            {
-                writer.WriteRef(root);
+                binaryWriter.Write(Encoding.ASCII.GetBytes(HEADER_STRING + "\n"));
+                binaryWriter.Write(VERSION);
+                binaryWriter.Write((uint)blocks.Count);
+
+                // Before version 5 there is no block type table: each block starts with its class name
+                foreach (var block in blocks)
+                {
+                    writer.WriteSizedString(block.ClassName);
+                    block.Write(writer);
+                }
+
+                binaryWriter.Write((uint)file.Roots.Count);
+                foreach (var root in file.Roots)
+                {
+                    writer.WriteRef(root);
+                }
             }
         }
 
         public static byte[] Write(NifFile file)
         {
-            using var stream = new MemoryStream();
-            Write(file, stream);
-            return stream.ToArray();
+            using (var stream = new MemoryStream())
+            {
+                Write(file, stream);
+                return stream.ToArray();
+            }
         }
 
         public void WriteByte(byte value) => _writer.Write(value);

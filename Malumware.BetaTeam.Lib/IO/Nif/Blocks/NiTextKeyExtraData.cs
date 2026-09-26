@@ -16,6 +16,7 @@ namespace Malumware.BetaTeam.Lib.IO.Nif.Blocks
                 {
                     count += sizeof(float) + sizeof(uint) + Encoding.Latin1.GetByteCount(key.Value);
                 }
+
                 return (uint)count;
             }
         }

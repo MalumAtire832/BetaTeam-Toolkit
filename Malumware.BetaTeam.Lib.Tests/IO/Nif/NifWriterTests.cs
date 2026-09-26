@@ -24,6 +24,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             var line = Encoding.ASCII.GetString(reader.ReadBytes(NifWriter.HEADER_STRING.Length + 1));
             Assert.Equal(NifWriter.HEADER_STRING + "\n", line);
             Assert.Equal(NifWriter.VERSION, reader.ReadUInt32());
+
             return reader.ReadUInt32();
         }
 
@@ -33,6 +34,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             var name = ReadSizedString(reader);
             var extraData = reader.ReadInt32();
             Assert.Equal(-1, reader.ReadInt32());
+
             return (name, extraData);
         }
 
@@ -51,25 +53,29 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             };
 
             // Act
-            using var reader = Open(new NifFile([node]));
-
-            // Assert
-            Assert.Equal(1u, ReadHeader(reader));
-            Assert.Equal("NiNode", ReadSizedString(reader));
-            Assert.Equal(("Root", -1), ReadObjectNet(reader));
-            Assert.Equal(NiAVObject.FLAG_HIDDEN, reader.ReadUInt16());
-            Assert.Equal([1f, 2, 3], new[] { reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle() });
-            var rotation = Enumerable.Range(0, 9).Select(_ => reader.ReadSingle()).ToArray();
-            Assert.Equal([1f, 2, 3, 4, 5, 6, 7, 8, 9], rotation);
-            Assert.Equal(2f, reader.ReadSingle());
-            Assert.Equal([4f, 5, 6], new[] { reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle() });
-            Assert.Equal(0u, reader.ReadUInt32());      // properties
-            Assert.Equal(0u, reader.ReadUInt32());      // no bounding volume, as a four-byte bool
-            Assert.Equal(0u, reader.ReadUInt32());      // children
-            Assert.Equal(0u, reader.ReadUInt32());      // effects
-            Assert.Equal(1u, reader.ReadUInt32());      // roots
-            Assert.Equal(0, reader.ReadInt32());
-            Assert.Equal(reader.BaseStream.Length, reader.BaseStream.Position);
+            using (var reader = Open(new NifFile([node])))
+            {
+                // Assert
+                Assert.Equal(1u, ReadHeader(reader));
+                Assert.Equal("NiNode", ReadSizedString(reader));
+                Assert.Equal(("Root", -1), ReadObjectNet(reader));
+                Assert.Equal(NiAVObject.FLAG_HIDDEN, reader.ReadUInt16());
+                Assert.Equal([1f, 2, 3], new[] { reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle() });
+                var rotation = Enumerable
+                    .Range(0, 9)
+                    .Select(_ => reader.ReadSingle())
+                    .ToArray();
+                Assert.Equal([1f, 2, 3, 4, 5, 6, 7, 8, 9], rotation);
+                Assert.Equal(2f, reader.ReadSingle());
+                Assert.Equal([4f, 5, 6], new[] { reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle() });
+                Assert.Equal(0u, reader.ReadUInt32());      // properties
+                Assert.Equal(0u, reader.ReadUInt32());      // no bounding volume, as a four-byte bool
+                Assert.Equal(0u, reader.ReadUInt32());      // children
+                Assert.Equal(0u, reader.ReadUInt32());      // effects
+                Assert.Equal(1u, reader.ReadUInt32());      // roots
+                Assert.Equal(0, reader.ReadInt32());
+                Assert.Equal(reader.BaseStream.Length, reader.BaseStream.Position);
+            }
         }
 
         [Fact]
@@ -104,16 +110,17 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             root.Children.AddRange([null, child]);
 
             // Act
-            using var reader = Open(new NifFile([root]));
-
-            // Assert
-            Assert.Equal(2u, ReadHeader(reader));
-            Assert.Equal("NiNode", ReadSizedString(reader));
-            ReadObjectNet(reader);
-            reader.ReadBytes(2 + 12 + 36 + 4 + 12 + 4 + 4);    // flags to bounding volume
-            Assert.Equal(2u, reader.ReadUInt32());
-            Assert.Equal(-1, reader.ReadInt32());
-            Assert.Equal(1, reader.ReadInt32());
+            using (var reader = Open(new NifFile([root])))
+            {
+                // Assert
+                Assert.Equal(2u, ReadHeader(reader));
+                Assert.Equal("NiNode", ReadSizedString(reader));
+                ReadObjectNet(reader);
+                reader.ReadBytes(2 + 12 + 36 + 4 + 12 + 4 + 4);    // flags to bounding volume
+                Assert.Equal(2u, reader.ReadUInt32());
+                Assert.Equal(-1, reader.ReadInt32());
+                Assert.Equal(1, reader.ReadInt32());
+            }
         }
 
         [Fact]
@@ -125,21 +132,22 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             property.AddExtraData(new NiStringExtraData("Second"));
 
             // Act
-            using var reader = Open(new NifFile([property]));
-
-            // Assert
-            Assert.Equal(3u, ReadHeader(reader));
-            Assert.Equal("NiShadeProperty", ReadSizedString(reader));
-            Assert.Equal(("", 1), ReadObjectNet(reader));
-            Assert.Equal(0, reader.ReadUInt16());
-            Assert.Equal("NiStringExtraData", ReadSizedString(reader));
-            Assert.Equal(2, reader.ReadInt32());                    // next
-            Assert.Equal(4u + 5, reader.ReadUInt32());              // bytes that follow
-            Assert.Equal("First", ReadSizedString(reader));
-            Assert.Equal("NiStringExtraData", ReadSizedString(reader));
-            Assert.Equal(-1, reader.ReadInt32());
-            Assert.Equal(4u + 6, reader.ReadUInt32());
-            Assert.Equal("Second", ReadSizedString(reader));
+            using (var reader = Open(new NifFile([property])))
+            {
+                // Assert
+                Assert.Equal(3u, ReadHeader(reader));
+                Assert.Equal("NiShadeProperty", ReadSizedString(reader));
+                Assert.Equal(("", 1), ReadObjectNet(reader));
+                Assert.Equal(0, reader.ReadUInt16());
+                Assert.Equal("NiStringExtraData", ReadSizedString(reader));
+                Assert.Equal(2, reader.ReadInt32());                    // next
+                Assert.Equal(4u + 5, reader.ReadUInt32());              // bytes that follow
+                Assert.Equal("First", ReadSizedString(reader));
+                Assert.Equal("NiStringExtraData", ReadSizedString(reader));
+                Assert.Equal(-1, reader.ReadInt32());
+                Assert.Equal(4u + 6, reader.ReadUInt32());
+                Assert.Equal("Second", ReadSizedString(reader));
+            }
         }
 
         [Fact]
@@ -159,29 +167,30 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             data.UvSets.Add([Vector2.Zero, Vector2.UnitX, Vector2.UnitY]);
 
             // Act
-            using var reader = Open(new NifFile([data]));
-
-            // Assert
-            ReadHeader(reader);
-            Assert.Equal("NiTriShapeData", ReadSizedString(reader));
-            Assert.Equal(3, reader.ReadUInt16());
-            Assert.Equal(1u, reader.ReadUInt32());                  // has vertices
-            reader.ReadBytes(3 * 12);
-            Assert.Equal(1u, reader.ReadUInt32());                  // has normals
-            reader.ReadBytes(3 * 12);
-            reader.ReadBytes(16);                                   // bound
-            Assert.Equal(1u, reader.ReadUInt32());                  // has vertex colours
-            reader.ReadBytes(3 * 16);
-            Assert.Equal(1, reader.ReadUInt16());                   // UV sets
-            Assert.Equal(1u, reader.ReadUInt32());                  // has UV
-            reader.ReadBytes(3 * 8);
-            Assert.Equal(1, reader.ReadUInt16());                   // triangles
-            Assert.Equal(3u, reader.ReadUInt32());                  // triangle points
-            Assert.Equal([0, 1, 2], new[] { reader.ReadUInt16(), reader.ReadUInt16(), reader.ReadUInt16() });
-            Assert.Equal(0, reader.ReadUInt16());                   // match groups
-            Assert.Equal(1u, reader.ReadUInt32());                  // roots
-            Assert.Equal(0, reader.ReadInt32());
-            Assert.Equal(reader.BaseStream.Length, reader.BaseStream.Position);
+            using (var reader = Open(new NifFile([data])))
+            {
+                // Assert
+                ReadHeader(reader);
+                Assert.Equal("NiTriShapeData", ReadSizedString(reader));
+                Assert.Equal(3, reader.ReadUInt16());
+                Assert.Equal(1u, reader.ReadUInt32());                  // has vertices
+                reader.ReadBytes(3 * 12);
+                Assert.Equal(1u, reader.ReadUInt32());                  // has normals
+                reader.ReadBytes(3 * 12);
+                reader.ReadBytes(16);                                   // bound
+                Assert.Equal(1u, reader.ReadUInt32());                  // has vertex colours
+                reader.ReadBytes(3 * 16);
+                Assert.Equal(1, reader.ReadUInt16());                   // UV sets
+                Assert.Equal(1u, reader.ReadUInt32());                  // has UV
+                reader.ReadBytes(3 * 8);
+                Assert.Equal(1, reader.ReadUInt16());                   // triangles
+                Assert.Equal(3u, reader.ReadUInt32());                  // triangle points
+                Assert.Equal([0, 1, 2], new[] { reader.ReadUInt16(), reader.ReadUInt16(), reader.ReadUInt16() });
+                Assert.Equal(0, reader.ReadUInt16());                   // match groups
+                Assert.Equal(1u, reader.ReadUInt32());                  // roots
+                Assert.Equal(0, reader.ReadInt32());
+                Assert.Equal(reader.BaseStream.Length, reader.BaseStream.Position);
+            }
         }
 
         [Fact]
@@ -204,21 +213,22 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             var node = new NiNode { BoundingVolume = union };
 
             // Act
-            using var reader = Open(new NifFile([node]));
-
-            // Assert
-            ReadHeader(reader);
-            ReadSizedString(reader);
-            ReadObjectNet(reader);
-            reader.ReadBytes(2 + 12 + 36 + 4 + 12 + 4);
-            Assert.Equal(1u, reader.ReadUInt32());                  // has bounding volume
-            Assert.Equal(4u, reader.ReadUInt32());                  // union
-            Assert.Equal(2u, reader.ReadUInt32());
-            Assert.Equal(0u, reader.ReadUInt32());                  // sphere
-            reader.ReadBytes(16);
-            Assert.Equal(1u, reader.ReadUInt32());                  // box
-            reader.ReadBytes(12 + 36 + 12);
-            Assert.Equal(0u, reader.ReadUInt32());                  // children
+            using (var reader = Open(new NifFile([node])))
+            {
+                // Assert
+                ReadHeader(reader);
+                ReadSizedString(reader);
+                ReadObjectNet(reader);
+                reader.ReadBytes(2 + 12 + 36 + 4 + 12 + 4);
+                Assert.Equal(1u, reader.ReadUInt32());                  // has bounding volume
+                Assert.Equal(4u, reader.ReadUInt32());                  // union
+                Assert.Equal(2u, reader.ReadUInt32());
+                Assert.Equal(0u, reader.ReadUInt32());                  // sphere
+                reader.ReadBytes(16);
+                Assert.Equal(1u, reader.ReadUInt32());                  // box
+                reader.ReadBytes(12 + 36 + 12);
+                Assert.Equal(0u, reader.ReadUInt32());                  // children
+            }
         }
 
         [Fact]
@@ -230,29 +240,30 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Nif
             property.Textures[(int)NifTextureSlot.Base] = new NifTexDesc { Source = source, ClampMode = 0, FilterMode = 1 };
 
             // Act
-            using var reader = Open(new NifFile([property]));
-
-            // Assert
-            Assert.Equal(2u, ReadHeader(reader));
-            Assert.Equal("NiTexturingProperty", ReadSizedString(reader));
-            ReadObjectNet(reader);
-            Assert.Equal(0, reader.ReadUInt16());                   // flags
-            Assert.Equal(NiTexturingProperty.APPLY_MODULATE, reader.ReadUInt32());
-            Assert.Equal(7u, reader.ReadUInt32());                  // texture count
-            Assert.Equal(1u, reader.ReadUInt32());                  // has base texture
-            Assert.Equal(1, reader.ReadInt32());                    // source
-            Assert.Equal(0u, reader.ReadUInt32());                  // clamp
-            Assert.Equal(1u, reader.ReadUInt32());                  // filter
-            Assert.Equal(0u, reader.ReadUInt32());                  // UV set
-            reader.ReadBytes(6);                                    // PS2 L and K, unknown short
-            for (var slot = 1; slot < NiTexturingProperty.TEXTURE_COUNT; slot++)
+            using (var reader = Open(new NifFile([property])))
             {
-                Assert.Equal(0u, reader.ReadUInt32());
+                // Assert
+                Assert.Equal(2u, ReadHeader(reader));
+                Assert.Equal("NiTexturingProperty", ReadSizedString(reader));
+                ReadObjectNet(reader);
+                Assert.Equal(0, reader.ReadUInt16());                   // flags
+                Assert.Equal(NiTexturingProperty.APPLY_MODULATE, reader.ReadUInt32());
+                Assert.Equal(7u, reader.ReadUInt32());                  // texture count
+                Assert.Equal(1u, reader.ReadUInt32());                  // has base texture
+                Assert.Equal(1, reader.ReadInt32());                    // source
+                Assert.Equal(0u, reader.ReadUInt32());                  // clamp
+                Assert.Equal(1u, reader.ReadUInt32());                  // filter
+                Assert.Equal(0u, reader.ReadUInt32());                  // UV set
+                reader.ReadBytes(6);                                    // PS2 L and K, unknown short
+                for (var slot = 1; slot < NiTexturingProperty.TEXTURE_COUNT; slot++)
+                {
+                    Assert.Equal(0u, reader.ReadUInt32());
+                }
+                Assert.Equal("NiSourceTexture", ReadSizedString(reader));
+                ReadObjectNet(reader);
+                Assert.Equal(1, reader.ReadByte());                     // external
+                Assert.Equal("a.tga", ReadSizedString(reader));
             }
-            Assert.Equal("NiSourceTexture", ReadSizedString(reader));
-            ReadObjectNet(reader);
-            Assert.Equal(1, reader.ReadByte());                     // external
-            Assert.Equal("a.tga", ReadSizedString(reader));
         }
     }
 }

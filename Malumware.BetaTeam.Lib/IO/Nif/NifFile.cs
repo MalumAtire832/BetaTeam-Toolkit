@@ -33,12 +33,16 @@ namespace Malumware.BetaTeam.Lib.IO.Nif
                 }
 
                 blocks.Add(block);
-                var links = block.GetLinks().OfType<NiObject>().ToList();
+                var links = block
+                    .GetLinks()
+                    .OfType<NiObject>()
+                    .ToList();
                 for (var i = links.Count - 1; i >= 0; i--)
                 {
                     stack.Push(links[i]);
                 }
             }
+
             return blocks;
         }
     }

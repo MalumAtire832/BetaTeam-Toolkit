@@ -17,7 +17,10 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
                 return ConvertFile(settings.InputPath, settings.OutputPath) ? 0 : 1;
             }
 
-            var files = Directory.EnumerateFiles(settings.InputPath, settings.Mask, ENUMERATION_OPTIONS).Order().ToList();
+            var files = Directory
+                .EnumerateFiles(settings.InputPath, settings.Mask, ENUMERATION_OPTIONS)
+                .Order()
+                .ToList();
             if (files.Count == 0)
             {
                 AnsiConsole.MarkupLine("[yellow]No FIN files found.[/]");
@@ -45,6 +48,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
             }
 
             AnsiConsole.MarkupLine($"[green]Done.[/] Converted {files.Count - failed} of {files.Count} files.");
+
             return failed == 0 ? 0 : 1;
         }
 
@@ -62,6 +66,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
                 {
                     AnsiConsole.MarkupLineInterpolated($"  [yellow]{warning}[/]");
                 }
+
                 return true;
             }
             catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
