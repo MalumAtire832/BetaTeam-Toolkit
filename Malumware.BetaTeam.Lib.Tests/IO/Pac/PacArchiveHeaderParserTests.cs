@@ -16,16 +16,17 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 0x28, 0x00, 0x00, 0x00,                     // directory size = 0x28
             };
             var stream = new MemoryStream(bytes);
-            using var parser = new PacArchiveHeaderParser(stream);
+            using (var parser = new PacArchiveHeaderParser(stream))
+            {
+                // Act
+                var header = parser.Parse();
 
-            // Act
-            var header = parser.Parse();
-
-            // Assert
-            Assert.True(header.IsValid);
-            Assert.Equal(0x40u, header.ArchiveSize);
-            Assert.Equal(0x28u, header.DirectorySize);
-            Assert.Equal(PacArchiveHeader.SIZE, stream.Position);
+                // Assert
+                Assert.True(header.IsValid);
+                Assert.Equal(0x40u, header.ArchiveSize);
+                Assert.Equal(0x28u, header.DirectorySize);
+                Assert.Equal(PacArchiveHeader.SIZE, stream.Position);
+            }
         }
 
         [Fact]
@@ -38,13 +39,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
             bytes[2] = (byte)'P';
             bytes[3] = (byte)'E';
             var stream = new MemoryStream(bytes);
-            using var parser = new PacArchiveHeaderParser(stream);
+            using (var parser = new PacArchiveHeaderParser(stream))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
+                // Assert
+                Assert.Throws<InvalidDataException>(act);
+            }
         }
     }
 }

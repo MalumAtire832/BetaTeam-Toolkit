@@ -11,8 +11,10 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
 
         internal static StringTable Read(string name, byte[] bytes)
         {
-            using var parser = new StringTableParser(new MemoryStream(bytes));
-            return new StringTable(name, parser.Parse());
+            using (var parser = new StringTableParser(new MemoryStream(bytes)))
+            {
+                return new StringTable(name, parser.Parse());
+            }
         }
     }
 }

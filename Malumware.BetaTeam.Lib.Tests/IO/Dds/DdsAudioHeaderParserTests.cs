@@ -17,20 +17,21 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
                 bitsPerSample: 16
             );
             var stream = new MemoryStream(bytes);
-            using var parser = new DdsAudioHeaderParser(stream);
+            using (var parser = new DdsAudioHeaderParser(stream))
+            {
+                // Act
+                var header = parser.Parse();
 
-            // Act
-            var header = parser.Parse();
-
-            // Assert
-            Assert.True(header.IsValid);
-            Assert.Equal(DdsAudioFormat.Pcm, header.Format);
-            Assert.Equal(2, header.Channels);
-            Assert.Equal(44100u, header.SampleRate);
-            Assert.Equal(176400u, header.ByteRate);
-            Assert.Equal(4, header.BlockAlign);
-            Assert.Equal(16, header.BitsPerSample);
-            Assert.Equal(0, header.ExtraSize);
+                // Assert
+                Assert.True(header.IsValid);
+                Assert.Equal(DdsAudioFormat.Pcm, header.Format);
+                Assert.Equal(2, header.Channels);
+                Assert.Equal(44100u, header.SampleRate);
+                Assert.Equal(176400u, header.ByteRate);
+                Assert.Equal(4, header.BlockAlign);
+                Assert.Equal(16, header.BitsPerSample);
+                Assert.Equal(0, header.ExtraSize);
+            }
         }
 
         [Fact]
@@ -46,13 +47,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
                 bitsPerSample: 16
             );
             var stream = new MemoryStream(bytes);
-            using var parser = new DdsAudioHeaderParser(stream);
+            using (var parser = new DdsAudioHeaderParser(stream))
+            {
+                // Act
+                parser.Parse();
 
-            // Act
-            parser.Parse();
-
-            // Assert
-            Assert.Equal(DdsAudioHeader.SIZE, stream.Position);
+                // Assert
+                Assert.Equal(DdsAudioHeader.SIZE, stream.Position);
+            }
         }
 
         [Fact]
@@ -68,29 +70,32 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
                 bitsPerSample: 16
             );
             var stream = new MemoryStream(bytes);
-            using var parser = new DdsAudioHeaderParser(stream);
+            using (var parser = new DdsAudioHeaderParser(stream))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
+                // Assert
+                Assert.Throws<InvalidDataException>(act);
+            }
         }
 
         private static byte[] BuildHeaderBytes(
             ushort format, ushort channels, uint sampleRate,
             uint byteRate, ushort blockAlign, ushort bitsPerSample)
         {
-            using var ms = new MemoryStream();
-            using var writer = new BinaryWriter(ms);
-            writer.Write(format);
-            writer.Write(channels);
-            writer.Write(sampleRate);
-            writer.Write(byteRate);
-            writer.Write(blockAlign);
-            writer.Write(bitsPerSample);
-            writer.Write((ushort)0);    // extra size (cbSize)
-            return ms.ToArray();
+            using (var ms = new MemoryStream())
+            using (var writer = new BinaryWriter(ms))
+            {
+                writer.Write(format);
+                writer.Write(channels);
+                writer.Write(sampleRate);
+                writer.Write(byteRate);
+                writer.Write(blockAlign);
+                writer.Write(bitsPerSample);
+                writer.Write((ushort)0);    // extra size (cbSize)
+                return ms.ToArray();
+            }
         }
     }
 }

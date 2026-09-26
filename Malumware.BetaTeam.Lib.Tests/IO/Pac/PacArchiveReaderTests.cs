@@ -69,28 +69,29 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
             var directorySize = (uint)(PacArchiveHeader.SIZE + 4 + files.Sum(f => PacTestData.EntrySize(f.Name)) + 4);
             var archiveSize = directorySize + (uint)files.Sum(f => f.Data.Length);
 
-            using var ms = new MemoryStream();
-            using var writer = new BinaryWriter(ms);
-
-            PacTestData.WriteHeader(writer, archiveSize, directorySize);
-
-            // Directory
-            writer.Write((uint)files.Length);
-            var offset = directorySize;
-            foreach (var (name, data) in files)
+            using (var ms = new MemoryStream())
+            using (var writer = new BinaryWriter(ms))
             {
-                PacTestData.WriteEntry(writer, name, offset, (uint)data.Length);
-                offset += (uint)data.Length;
-            }
-            writer.Write(0u);             // sub-directory count
+                PacTestData.WriteHeader(writer, archiveSize, directorySize);
 
-            // File data
-            foreach (var (_, data) in files)
-            {
-                writer.Write(data);
-            }
+                // Directory
+                writer.Write((uint)files.Length);
+                var offset = directorySize;
+                foreach (var (name, data) in files)
+                {
+                    PacTestData.WriteEntry(writer, name, offset, (uint)data.Length);
+                    offset += (uint)data.Length;
+                }
+                writer.Write(0u);             // sub-directory count
 
-            return ms.ToArray();
+                // File data
+                foreach (var (_, data) in files)
+                {
+                    writer.Write(data);
+                }
+
+                return ms.ToArray();
+            }
         }
     }
 }

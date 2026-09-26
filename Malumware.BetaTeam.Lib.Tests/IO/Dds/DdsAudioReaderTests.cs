@@ -58,18 +58,20 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Dds
         {
             extraBytes ??= [];
 
-            using var ms = new MemoryStream();
-            using var writer = new BinaryWriter(ms);
-            writer.Write(format);       // format
-            writer.Write((ushort)2);    // channels
-            writer.Write(44100u);       // sample rate
-            writer.Write(176400u);      // byte rate
-            writer.Write((ushort)4);    // block align
-            writer.Write((ushort)16);   // bits per sample
-            writer.Write((ushort)extraBytes.Length); // extra size (cbSize)
-            writer.Write(extraBytes);
-            writer.Write(sampleData);
-            return ms.ToArray();
+            using (var ms = new MemoryStream())
+            using (var writer = new BinaryWriter(ms))
+            {
+                writer.Write(format);       // format
+                writer.Write((ushort)2);    // channels
+                writer.Write(44100u);       // sample rate
+                writer.Write(176400u);      // byte rate
+                writer.Write((ushort)4);    // block align
+                writer.Write((ushort)16);   // bits per sample
+                writer.Write((ushort)extraBytes.Length); // extra size (cbSize)
+                writer.Write(extraBytes);
+                writer.Write(sampleData);
+                return ms.ToArray();
+            }
         }
     }
 }

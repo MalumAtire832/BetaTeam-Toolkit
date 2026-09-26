@@ -14,17 +14,18 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 PacTestData.WriteEntry(writer, "FOO", offsetLow: 0x44u, size: 3u);
                 writer.Write(0u);         // sub-directory count
             });
-            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+            using (var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var entries = parser.Parse();
 
-            // Act
-            var entries = parser.Parse();
-
-            // Assert
-            var entry = Assert.Single(entries);
-            Assert.Equal("FOO", entry.FileName);
-            Assert.Equal(0x44L, entry.Offset);
-            Assert.Equal(3, entry.Size);
-            Assert.Null(entry.LastModified);
+                // Assert
+                var entry = Assert.Single(entries);
+                Assert.Equal("FOO", entry.FileName);
+                Assert.Equal(0x44L, entry.Offset);
+                Assert.Equal(3, entry.Size);
+                Assert.Null(entry.LastModified);
+            }
         }
 
         [Fact]
@@ -37,13 +38,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 PacTestData.WriteEntry(writer, "BIG", offsetLow: 0x10u, size: 1u, offsetHigh: 0x2u);
                 writer.Write(0u);
             });
-            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+            using (var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var entry = Assert.Single(parser.Parse());
 
-            // Act
-            var entry = Assert.Single(parser.Parse());
-
-            // Assert
-            Assert.Equal(0x2_0000_0010L, entry.Offset);
+                // Assert
+                Assert.Equal(0x2_0000_0010L, entry.Offset);
+            }
         }
 
         [Theory]
@@ -59,13 +61,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 PacTestData.WriteEntry(writer, "X", offsetLow: 0u, size: 0u, fileTime: fileTime);
                 writer.Write(0u);
             });
-            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+            using (var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var entry = Assert.Single(parser.Parse());
 
-            // Act
-            var entry = Assert.Single(parser.Parse());
-
-            // Assert
-            Assert.Null(entry.LastModified);
+                // Assert
+                Assert.Null(entry.LastModified);
+            }
         }
 
         [Fact]
@@ -79,13 +82,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 PacTestData.WriteEntry(writer, "X", offsetLow: 0u, size: 0u, fileTime: expected.ToFileTimeUtc());
                 writer.Write(0u);
             });
-            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+            using (var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var entry = Assert.Single(parser.Parse());
 
-            // Act
-            var entry = Assert.Single(parser.Parse());
-
-            // Assert
-            Assert.Equal(expected, entry.LastModified);
+                // Assert
+                Assert.Equal(expected, entry.LastModified);
+            }
         }
 
         [Fact]
@@ -98,14 +102,15 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 writer.Write(0u);         // sub-directory count
             });
             var stream = new MemoryStream(bytes);
-            using var parser = new PacArchiveDirectoryParser(stream);
+            using (var parser = new PacArchiveDirectoryParser(stream))
+            {
+                // Act
+                var entries = parser.Parse();
 
-            // Act
-            var entries = parser.Parse();
-
-            // Assert
-            Assert.Empty(entries);
-            Assert.Equal(bytes.Length, stream.Position);
+                // Assert
+                Assert.Empty(entries);
+                Assert.Equal(bytes.Length, stream.Position);
+            }
         }
 
         [Fact]
@@ -127,17 +132,18 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 writer.Write(0u);
             });
             var stream = new MemoryStream(bytes);
-            using var parser = new PacArchiveDirectoryParser(stream);
+            using (var parser = new PacArchiveDirectoryParser(stream))
+            {
+                // Act
+                var entries = parser.Parse();
 
-            // Act
-            var entries = parser.Parse();
-
-            // Assert
-            Assert.Equal(
-                ["ROOT.TXT", @"SUB\A.TXT", @"SUB\DEEP\B.TXT"],
-                entries.Select(e => e.FileName)
-            );
-            Assert.Equal(bytes.Length, stream.Position);
+                // Assert
+                Assert.Equal(
+                    ["ROOT.TXT", @"SUB\A.TXT", @"SUB\DEEP\B.TXT"],
+                    entries.Select(e => e.FileName)
+                );
+                Assert.Equal(bytes.Length, stream.Position);
+            }
         }
 
         [Fact]
@@ -151,13 +157,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 PacTestData.WriteEntry(writer, name, offsetLow: 0u, size: 0u);
                 writer.Write(0u);
             });
-            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+            using (var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
+                // Assert
+                Assert.Throws<InvalidDataException>(act);
+            }
         }
 
         [Theory]
@@ -176,13 +183,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 PacTestData.WriteEntry(writer, name, offsetLow: 0u, size: 0u);
                 writer.Write(0u);
             });
-            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+            using (var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
+                // Assert
+                Assert.Throws<InvalidDataException>(act);
+            }
         }
 
         [Theory]
@@ -199,21 +207,24 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Pac
                 writer.Write(0u);
                 writer.Write(0u);
             });
-            using var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes));
+            using (var parser = new PacArchiveDirectoryParser(new MemoryStream(bytes)))
+            {
+                // Act
+                var act = () => parser.Parse();
 
-            // Act
-            var act = () => parser.Parse();
-
-            // Assert
-            Assert.Throws<InvalidDataException>(act);
+                // Assert
+                Assert.Throws<InvalidDataException>(act);
+            }
         }
 
         private static byte[] BuildDirectoryBytes(Action<BinaryWriter> write)
         {
-            using var stream = new MemoryStream();
-            using var writer = new BinaryWriter(stream);
-            write(writer);
-            return stream.ToArray();
+            using (var stream = new MemoryStream())
+            using (var writer = new BinaryWriter(stream))
+            {
+                write(writer);
+                return stream.ToArray();
+            }
         }
     }
 }
