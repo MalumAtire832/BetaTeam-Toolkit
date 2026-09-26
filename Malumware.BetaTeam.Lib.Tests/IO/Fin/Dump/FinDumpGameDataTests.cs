@@ -29,6 +29,32 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Dump
             Assert.Empty(duplicates.Distinct());
         }
 
+        [GameDataFact]
+        public void Write_ProducesTextAndValidJson_ForEveryShippedFile()
+        {
+            // Arrange
+            var count = 0;
+
+            // Act & Assert
+            foreach (var (name, data) in FinGameDataTests.FinFiles())
+            {
+                count++;
+                var dump = FinDumpBuilder.Build(FinReader.Read(name, data));
+
+                var text = new StringWriter();
+                FinTextDumpWriter.Write(dump, text, full: true);
+                Assert.StartsWith($"{name} (FIN version 23)", text.ToString());
+
+                var json = new MemoryStream();
+                FinJsonDumpWriter.Write(dump, json);
+                // Deep scene trees nest past System.Text.Json's default reading depth of 64
+                var options = new System.Text.Json.JsonDocumentOptions { MaxDepth = 1000 };
+                using var document = System.Text.Json.JsonDocument.Parse(json.ToArray(), options);
+                Assert.Equal(name, document.RootElement.GetProperty("name").GetString());
+            }
+            Assert.NotEqual(0, count);
+        }
+
         private static void CollectDuplicates(string file, FinDumpNode node, List<string> duplicates)
         {
             switch (node)
