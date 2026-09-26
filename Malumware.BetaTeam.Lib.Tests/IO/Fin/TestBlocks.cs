@@ -25,6 +25,36 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
         }
     }
 
+    internal sealed class TestListBlock : NiObject
+    {
+        public IReadOnlyList<FinRef<NiObject>> Items { get; private set; } = [];
+        public float[] Values { get; private set; } = [];
+
+        internal override void Load(FinBlockReader reader)
+        {
+            base.Load(reader);
+            Items = reader.ReadRefList<NiObject>();
+            var count = reader.ReadCount(sizeof(float));
+            Values = reader.ReadArray(count, r => r.ReadSingle());
+        }
+    }
+
+    internal sealed record TestData(FinRef<NiObject> Link, float X);
+
+    internal sealed class TestDataBlock : NiObject
+    {
+        public TestData Data { get; private set; } = null!;
+        public TestData[] Entries { get; private set; } = [];
+
+        internal override void Load(FinBlockReader reader)
+        {
+            base.Load(reader);
+            Data = new TestData(reader.ReadRef<NiObject>(), reader.ReadSingle());
+            var count = reader.ReadCount(8);
+            Entries = reader.ReadArray(count, r => new TestData(r.ReadRef<NiObject>(), r.ReadSingle()));
+        }
+    }
+
     internal sealed class TestExtraData : NiExtraData
     {
         public uint Value { get; private set; }
@@ -42,6 +72,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
             return new FinBlockRegistry()
                 .RegisterBlock<TestBlock>()
                 .RegisterBlock<TestParentBlock>()
+                .RegisterBlock<TestListBlock>()
+                .RegisterBlock<TestDataBlock>()
                 .RegisterExtraData<TestExtraData>();
         }
     }

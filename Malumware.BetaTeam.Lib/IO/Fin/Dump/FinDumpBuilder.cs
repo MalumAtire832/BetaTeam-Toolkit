@@ -1,0 +1,153 @@
+using System.Collections;
+using System.Reflection;
+using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
+
+namespace Malumware.BetaTeam.Lib.IO.Fin.Dump
+{
+    // Walks the parsed blocks by reflection, so new block classes need no dump code
+    public static class FinDumpBuilder
+    {
+        // Shown on FinDumpObject itself, not as fields
+        private static readonly HashSet<string> HEADER_PROPERTIES =
+            [nameof(NiObject.ClassName), nameof(NiObject.Offset), nameof(NiObject.LinkId)];
+
+        public static FinDump Build(FinFile file)
+        {
+            var visited = new HashSet<NiObject>(ReferenceEqualityComparer.Instance);
+            var roots = file.TopLevelObjects.Select(block => BuildBlock(null, block, visited)).ToList();
+
+            var unreferenced = new List<FinDumpObject>();
+            foreach (var block in file.Objects)
+            {
+                if (!visited.Contains(block))
+                {
+                    unreferenced.Add(BuildBlock(null, block, visited));
+                }
+            }
+
+            return new FinDump(file.Name, file.Header.Version, roots, unreferenced);
+        }
+
+        private static FinDumpObject BuildBlock(string? field, NiObject block, HashSet<NiObject> visited)
+        {
+            // Mark before descending, so cycles end in a reference
+            visited.Add(block);
+            return new FinDumpObject(field, block.ClassName, block.LinkId, block.Offset, BuildFields(block, visited, inData: false));
+        }
+
+        private static IReadOnlyList<FinDumpNode> BuildFields(object value, HashSet<NiObject> visited, bool inData)
+        {
+            var skipHeader = value is NiObject or NiExtraData;
+            var nodes = new List<FinDumpNode>();
+            foreach (var property in PropertiesBaseFirst(value.GetType()))
+            {
+                if (skipHeader && HEADER_PROPERTIES.Contains(property.Name))
+                {
+                    continue;
+                }
+                nodes.Add(BuildField(property.Name, property.GetValue(value), visited, inData));
+            }
+            return nodes;
+        }
+
+        private static FinDumpNode BuildField(string? field, object? value, HashSet<NiObject> visited, bool inData)
+        {
+            switch (value)
+            {
+                case null:
+                    return new FinDumpValue(field, null);
+                case FinRef reference:
+                    return BuildReference(field, reference, visited, expand: !inData);
+                case NiExtraData extraData:
+                    return new FinDumpObject(field, extraData.ClassName, null, extraData.Offset, BuildFields(extraData, visited, inData: false));
+                case string:
+                    return new FinDumpValue(field, value);
+                case IEnumerable items:
+                    return BuildList(field, value.GetType(), items, visited, inData);
+                default:
+                    if (value.GetType().IsValueType)
+                    {
+                        return new FinDumpValue(field, value);
+                    }
+                    // Plain objects (keys, bounding volumes, skills) are data: links inside them aren't expanded
+                    return new FinDumpObject(field, TypeName(value.GetType()), null, null, BuildFields(value, visited, inData: true));
+            }
+        }
+
+        private static FinDumpNode BuildReference(string? field, FinRef reference, HashSet<NiObject> visited, bool expand)
+        {
+            var target = reference.Target;
+            if (target is null)
+            {
+                return new FinDumpValue(field, null);
+            }
+            if (!expand || visited.Contains(target))
+            {
+                return new FinDumpReference(field, target.ClassName, target.LinkId);
+            }
+            return BuildBlock(field, target, visited);
+        }
+
+        private static FinDumpNode BuildList(string? field, Type type, IEnumerable items, HashSet<NiObject> visited, bool inData)
+        {
+            var element = ElementType(type);
+            if (element.IsValueType)
+            {
+                return new FinDumpArray(field, TypeName(element), items.Cast<object?>().ToList());
+            }
+
+            // Links and extra data make up the tree; anything else is data
+            var isData = inData || !(typeof(FinRef).IsAssignableFrom(element) || typeof(NiExtraData).IsAssignableFrom(element));
+            var nodes = items.Cast<object?>().Select(item => BuildField(null, item, visited, isData)).ToList();
+            return new FinDumpList(field, TypeName(element), nodes, isData);
+        }
+
+        private static Type ElementType(Type type)
+        {
+            if (type.IsArray)
+            {
+                return type.GetElementType()!;
+            }
+            var enumerable = type.GetInterfaces().Append(type)
+                .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+            return enumerable.GetGenericArguments()[0];
+        }
+
+        // FinKeyGroup`1 reads better as FinKeyGroup<FinPosKey>
+        private static string TypeName(Type type)
+        {
+            if (type.IsArray)
+            {
+                return TypeName(type.GetElementType()!) + "[]";
+            }
+            if (!type.IsGenericType)
+            {
+                return type.Name;
+            }
+            var name = type.Name[..type.Name.IndexOf('`')];
+            return $"{name}<{string.Join(", ", type.GetGenericArguments().Select(TypeName))}>";
+        }
+
+        // Reflection doesn't guarantee order, so walk the hierarchy and sort each level by declaration order
+        private static IEnumerable<PropertyInfo> PropertiesBaseFirst(Type type)
+        {
+            var hierarchy = new Stack<Type>();
+            for (var current = type; current is not null && current != typeof(object); current = current.BaseType)
+            {
+                hierarchy.Push(current);
+            }
+
+            foreach (var level in hierarchy)
+            {
+                var properties = level
+                    .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                    .Where(property => property.GetIndexParameters().Length == 0)
+                    .OrderBy(property => property.MetadataToken);
+                foreach (var property in properties)
+                {
+                    yield return property;
+                }
+            }
+        }
+    }
+}
