@@ -334,6 +334,38 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             Assert.Equal([0, 1], lod.VisualChildren.Select(e => Extras(e)["lodLevel"]!.GetValue<int>()));
         }
 
+        // A unit whose body holds a flat stand-in "LOD_Arm" next to the detailed "Arm"
+        private static byte[] StandInFile(float lodDistanceSquared)
+        {
+            var builder = new FinStreamBuilder().Header()
+                .TopLevel().SizedString("DDUnit").NiObject(0x20, "Unit").NiAVObjectFields().NiNodeFields([0x30], [])
+                .UInt32(0x10)                                   // shared data
+                .SizedString("DDActorSharedData").NiObject(0x10, "U0001")
+                .CString(null).CString(null)
+                .Byte(0).Byte(0).Floats(1, lodDistanceSquared)
+                .Int32(0).Int32(0).UInt32(0);                   // no skills, tracks or floor points
+            builder = Node(builder, 0x30, "Body", [0x40, 0x50]);
+            builder = Node(builder, 0x40, "LOD_Arm", []);
+
+            return Node(builder, 0x50, "Arm", []).EndOfFile().ToArray();
+        }
+
+        [Theory]
+        [InlineData(122500, false, new[] { "Arm" })]
+        [InlineData(122500, true, new[] { "LOD_Arm", "Arm" })]
+        [InlineData(0, false, new[] { "LOD_Arm", "Arm" })]
+        public void ToGlb_LeavesOutStandIns_WhenUnitSwapsThemInOnlyAtADistance(
+            float lodDistanceSquared, bool allLevelsOfDetail, string[] expected)
+        {
+            // Act
+            var model = Convert(StandInFile(lodDistanceSquared), allLevelsOfDetail);
+
+            // Assert
+            var unit = Assert.Single(SceneRoot(model).VisualChildren);
+            var body = Assert.Single(unit.VisualChildren);
+            Assert.Equal(expected, body.VisualChildren.Select(e => e.Name));
+        }
+
         [Fact]
         public void ToGlb_WritesFieldsToExtras_WithoutTransformOrHierarchy()
         {

@@ -21,7 +21,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         // Four unsigned 16-bit joint indices per vertex
         private const int JOINT_SIZE = 8;
 
-        // By default only the most detailed level of each NiLODNode is written, so the levels don't overlap
+        // By default only the most detailed level of each NiLODNode is written, and none of the flat "LOD_" stand-ins
+        // that characters show from afar, so the levels don't overlap
         public bool AllLevelsOfDetail { get; }
 
         public FinToGltfConverter(bool allLevelsOfDetail = false)
@@ -65,6 +66,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             private readonly Dictionary<NiAVObject, Node> _nodes = new(ReferenceEqualityComparer.Instance);
             private readonly Dictionary<Ni3dsSkin, FinGltfSkin> _skins = new(ReferenceEqualityComparer.Instance);
             private readonly List<(Node Node, FinGltfSkin Skin)> _skinnedNodes = [];
+            private readonly HashSet<NiAVObject> _standIns = new(ReferenceEqualityComparer.Instance);
             private Material? _material;
             private int _nodeCount;
 
@@ -82,6 +84,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 root.Extras = BuildRootExtras();
 
                 FindParents();
+                if (!_allLevelsOfDetail)
+                {
+                    FindStandIns();
+                }
                 foreach (var block in SceneRoots())
                 {
                     AddNode(root, block, 0);
@@ -101,6 +107,40 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                         {
                             _parents.TryAdd(child.Target, node);
                         }
+                    }
+                }
+            }
+
+            // Beyond a distance its shared data sets, a character hides its skinned meshes and shows flat stand-ins named
+            // "LOD_..." instead; nearer, it's the other way round. The engine finds the stand-ins by walking the actor's
+            // nodes, not descending into them. Like a NiLODNode's lower levels, they're only written for all levels.
+            private void FindStandIns()
+            {
+                foreach (var actor in _file.Objects.OfType<DDActor>())
+                {
+                    if (actor.SharedData.Target is { LodDistanceSquared: > 0 })
+                    {
+                        FindStandIns(actor, 0);
+                    }
+                }
+            }
+
+            private void FindStandIns(NiNode node, int depth)
+            {
+                if (depth >= MAX_DEPTH)
+                {
+                    throw new InvalidDataException($"Nodes are nested more than {MAX_DEPTH} levels deep");
+                }
+
+                foreach (var child in node.Children)
+                {
+                    if (child.Target?.Name?.StartsWith("LOD_", StringComparison.Ordinal) == true)
+                    {
+                        _standIns.Add(child.Target);
+                    }
+                    else if (child.Target is NiNode childNode)
+                    {
+                        FindStandIns(childNode, depth + 1);
                     }
                 }
             }
@@ -216,7 +256,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             {
                 var children = block.Children
                     .Select((child, index) => (Index: index, Child: child.Target))
-                    .Where(e => e.Child is not null)
+                    .Where(e => e.Child is not null && !_standIns.Contains(e.Child))
                     .Select(e => (e.Index, e.Child!));
 
                 if (block is not NiLODNode lod || _allLevelsOfDetail)

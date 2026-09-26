@@ -48,6 +48,9 @@ Blender can import:
   its vertices are written as points.
 - A `NiLODNode` keeps only its most detailed level: the child whose range starts closest to the camera. `--all-lods`
   keeps every level. Each level's node carries its index into the ranges as `lodLevel`.
+- Characters' flat `LOD_` stand-ins (see [Distant characters](#distant-characters)) are left out the same way, and
+  `--all-lods` keeps them. They then overlap the skinned meshes they replace, and face whichever way the file stores
+  them, since only the game turns them towards the camera.
 - Lights aren't part of the tree (see [NiLight](#nilight)), so they are placed under the root as empty nodes with
   their own transform.
 - Every other field of an object goes into its node's *extras*, which Blender shows under *Object Properties →
@@ -477,6 +480,17 @@ levels away.
 In every shipped skin, each vertex follows exactly one bone. With one bone the game ignores the weight and moves the
 vertex with the bone in full, so body parts move rigidly, like the parts of a minifigure.
 
+### Distant characters
+
+Characters carry a cheaper version of their skinned body parts: nodes named `LOD_` followed by the part (`LOD_LArm1`,
+`LOD_Chest`), each holding a flat shape under a [NiBillboardNode](#nibillboardnode) that turns it towards the camera.
+Beyond the distance set in the character's [DDActorSharedData](#ddactorshareddata), the game hides the skinned
+meshes and shows these stand-ins instead; nearer, it does the reverse. It finds them by name, looking through the
+actor's nodes but not inside a `LOD_` node. The game never shows both at once, so a viewer that shows everything
+has them poke through each other.
+
+In the shipped files, exactly the 13 objects with `LOD_` nodes set that distance: 350 for most, 450 for the rest.
+
 ## Digital Domain classes
 
 These classes are Digital Domain's own. They turn a NetImmerse scene into a game object: something with a type, a
@@ -510,7 +524,7 @@ behaviour (`U0209` runs `u0165`).
 | `bool`        | make shadow       | Whether the object casts a shadow (engine: `GetMakeShadow`)                      |
 | `bool`        | prop              | Whether the object is a prop (engine: `IsProp`). Only `P0121`, a crate stack, sets it; what changes for a prop isn't known |
 | `f32`         | shadow multiplier | Strength or size of the shadow (engine: `GetShadowMult`)                         |
-| `u32`         | (unknown)         |                                                                                  |
+| `f32`         | LOD distance²     | Squared distance beyond which a character shows its `LOD_` stand-ins instead of its skinned meshes; `0` never swaps (see [Distant characters](#distant-characters)) |
 | `i32` + count | skills            | Named animation clips, see below                                                 |
 | `i32` + count | tracks            | Keyframes for the animated nodes: rotation, position and scale key lists (type stored only when they have keys) and visibility keys, as in `Ni3dsAnimationNode` |
 | `u32` + count × `vec3` | floor points | Points the object stands on (engine: `GetFloorPts`; how they're used is inferred) |

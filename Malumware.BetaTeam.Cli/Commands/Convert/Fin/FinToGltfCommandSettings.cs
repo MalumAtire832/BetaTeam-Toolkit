@@ -19,7 +19,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
         public required string Mask { get; init; }
 
         [CommandOption("--all-lods")]
-        [Description("Write every level of detail instead of only the most detailed one")]
+        [Description("Write every level of detail instead of only the most detailed one, including characters' LOD_ stand-ins")]
         public bool AllLevelsOfDetail { get; init; }
 
         public override ValidationResult Validate()

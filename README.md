@@ -121,7 +121,7 @@ betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>
 | `INPUT_DIRECTORY`  | Directory containing `.FIN` files                              | —       |
 | `OUTPUT_DIRECTORY` | Directory to write `.glb` files into                           | —       |
 | `-m`, `--mask`     | File glob pattern                                              | `*.FIN` |
-| `--all-lods`       | Keep every level of detail instead of only the most detailed   | off     |
+| `--all-lods`       | Keep every level of detail instead of only the most detailed, including characters' flat `LOD_` stand-ins | off     |
 
 Examples:
 
