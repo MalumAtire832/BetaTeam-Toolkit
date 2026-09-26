@@ -41,7 +41,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                         if (!allLevelsOfDetail)
                         {
                             meshesWithoutNormals += model.LogicalMeshes
-                                .Count(mesh => mesh.Primitives.Any(p => p.GetVertexAccessor("NORMAL") is null));
+                                .Count(mesh => mesh.Primitives.Any(e => e.GetVertexAccessor("NORMAL") is null));
                         }
                     }
                     catch (Exception e)
@@ -73,7 +73,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             foreach (var (name, data) in FinGameDataTests.FinFiles())
             {
                 var file = FinReader.Read(name, data);
-                var shapes = file.Objects.OfType<NiTriBasedGeom>().Count(shape => shape.Vertices is { Length: > 0 });
+                var shapes = file.Objects.OfType<NiTriBasedGeom>().Count(e => e.Vertices is { Length: > 0 });
                 var model = new FinToGltfConverter(allLevelsOfDetail: true).ToModel(file);
                 if (model.LogicalMeshes.Count != shapes)
                 {

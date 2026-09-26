@@ -214,7 +214,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 return type.GetElementType()!;
             }
             var enumerable = type.GetInterfaces().Append(type)
-                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+                .FirstOrDefault(e => e.IsGenericType && e.GetGenericTypeDefinition() == typeof(IEnumerable<>));
             return enumerable?.GetGenericArguments()[0] ?? typeof(object);
         }
     }

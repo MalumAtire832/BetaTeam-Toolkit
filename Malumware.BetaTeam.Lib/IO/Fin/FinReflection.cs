@@ -10,8 +10,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
         {
             return type
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                .Where(property => property.GetIndexParameters().Length == 0)
-                .OrderBy(property => property.MetadataToken);
+                .Where(e => e.GetIndexParameters().Length == 0)
+                .OrderBy(e => e.MetadataToken);
         }
 
         // Base class properties first, the order in which the engine reads them

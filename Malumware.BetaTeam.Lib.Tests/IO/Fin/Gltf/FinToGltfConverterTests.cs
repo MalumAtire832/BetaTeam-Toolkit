@@ -142,7 +142,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             var root = Assert.Single(SceneRoot(model).VisualChildren);
             Assert.Equal(2, root.VisualChildren.Count());
             Assert.Single(model.LogicalMeshes);
-            Assert.All(root.VisualChildren, child => Assert.Same(model.LogicalMeshes[0], child.Mesh));
+            Assert.All(root.VisualChildren, e => Assert.Same(model.LogicalMeshes[0], e.Mesh));
         }
 
         [Fact]
@@ -205,8 +205,8 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
 
             // Assert
             var lod = Assert.Single(SceneRoot(model).VisualChildren);
-            Assert.Equal(["Far", "Near"], lod.VisualChildren.Select(child => child.Name));
-            Assert.Equal([0, 1], lod.VisualChildren.Select(child => Extras(child)["lodLevel"]!.GetValue<int>()));
+            Assert.Equal(["Far", "Near"], lod.VisualChildren.Select(e => e.Name));
+            Assert.Equal([0, 1], lod.VisualChildren.Select(e => Extras(e)["lodLevel"]!.GetValue<int>()));
         }
 
         [Fact]
@@ -275,7 +275,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             var sceneRoot = SceneRoot(Convert(bytes));
 
             // Assert
-            Assert.Equal(["Root", "Omni01"], sceneRoot.VisualChildren.Select(child => child.Name));
+            Assert.Equal(["Root", "Omni01"], sceneRoot.VisualChildren.Select(e => e.Name));
             var light = sceneRoot.VisualChildren.Last();
             Assert.Null(light.Mesh);
             Assert.Equal(2, Extras(light)["LightType"]!.GetValue<long>());

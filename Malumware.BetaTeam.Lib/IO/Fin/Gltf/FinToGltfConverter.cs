@@ -95,7 +95,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
 
                 var roots = _file.TopLevelObjects.OfType<NiAVObject>().ToList();
-                var free = _file.Objects.OfType<NiAVObject>().Where(block => !children.Contains(block) && !roots.Contains(block));
+                var free = _file.Objects.OfType<NiAVObject>().Where(e => !children.Contains(e) && !roots.Contains(e));
                 return roots.Concat(free);
             }
 
@@ -167,8 +167,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             {
                 var children = block.Children
                     .Select((child, index) => (Index: index, Child: child.Target))
-                    .Where(pair => pair.Child is not null)
-                    .Select(pair => (pair.Index, pair.Child!));
+                    .Where(e => e.Child is not null)
+                    .Select(e => (e.Index, e.Child!));
 
                 if (block is not NiLODNode lod || _allLevelsOfDetail)
                 {
@@ -176,7 +176,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
 
                 var level = MostDetailedLevel(lod);
-                return level is null ? children : children.Where(pair => pair.Index == level);
+                return level is null ? children : children.Where(e => e.Index == level);
             }
 
             // The level shown closest to the camera. Without usable ranges there's no telling, so every level is kept.
@@ -222,14 +222,14 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
                 if (geometry.Colors is { } colors)
                 {
-                    var values = colors.Select(c => new Vector4(c.R, c.G, c.B, c.A)).ToArray();
+                    var values = colors.Select(e => new Vector4(e.R, e.G, e.B, e.A)).ToArray();
                     primitive.WithVertexAccessor("COLOR_0", RequireFinite(geometry, "colour", values));
                 }
 
                 // glTF coordinates have two components; the unexplained third one goes into the extras
                 for (var set = 0; set < (geometry.TextureSets?.Count ?? 0); set++)
                 {
-                    var coordinates = geometry.TextureSets![set].Select(t => new Vector2(t.X, t.Y)).ToArray();
+                    var coordinates = geometry.TextureSets![set].Select(e => new Vector2(e.X, e.Y)).ToArray();
                     primitive.WithVertexAccessor($"TEXCOORD_{set}", RequireFinite(geometry, "texture coordinate", coordinates));
                 }
 
@@ -290,7 +290,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
             private static void AddTextureW(JsonObject extras, NiTriBasedGeom geometry)
             {
-                if (geometry.TextureSets is not { } sets || sets.All(set => set.All(t => t.Z == 0)))
+                if (geometry.TextureSets is not { } sets || sets.All(set => set.All(e => e.Z == 0)))
                 {
                     return;
                 }
@@ -298,7 +298,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 var array = new JsonArray();
                 foreach (var set in sets)
                 {
-                    array.Add(new JsonArray(set.Select(t => (JsonNode?)FinGltfExtrasBuilder.BuildFloat(t.Z)).ToArray()));
+                    array.Add(new JsonArray(set.Select(e => (JsonNode?)FinGltfExtrasBuilder.BuildFloat(e.Z)).ToArray()));
                 }
                 extras["TextureCoordinateW"] = array;
             }
