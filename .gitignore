@@ -855,3 +855,7 @@ Temporary Items
 
 # Local reverse-engineering workspace (game files, decompilation, notes)
 /Research/
+
+# Design and plan documents and workflow scratch files from AI-assisted work; decisions go in commits and PRs
+/docs/superpowers/
+/.superpowers/

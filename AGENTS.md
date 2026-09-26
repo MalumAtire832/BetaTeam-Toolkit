@@ -124,3 +124,5 @@ Rules for format work:
 - Commit messages: a short imperative subject, then a body explaining what changed and why.
 - Open PRs with `gh` against `master`. Include a summary, the reasoning for each change, how it was verified, and any
   breaking API changes.
+- Design and plan documents are working files and stay out of the repo (`docs/superpowers/` is ignored). Record the
+  decisions that matter in commit messages and the PR description instead.
