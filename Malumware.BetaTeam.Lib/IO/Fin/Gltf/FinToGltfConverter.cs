@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Text.Json.Nodes;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
+using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SharpGLTF.Transforms;
 
@@ -17,6 +18,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         public const int MAX_DEPTH = 256;
 
         private const float MIN_NORMAL_LENGTH = 1e-6f;
+        // Four unsigned 16-bit joint indices per vertex
+        private const int JOINT_SIZE = 8;
 
         // By default only the most detailed level of each NiLODNode is written, so the levels don't overlap
         public bool AllLevelsOfDetail { get; }
@@ -57,6 +60,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             private readonly FinGltfExtrasBuilder _extras = new();
             private readonly Dictionary<NiTriBasedGeom, Mesh?> _meshes = new(ReferenceEqualityComparer.Instance);
             private readonly HashSet<NiObject> _ancestors = new(ReferenceEqualityComparer.Instance);
+            private readonly Dictionary<NiAVObject, NiNode> _parents = new(ReferenceEqualityComparer.Instance);
+            // A block listed as a child in two places gets two nodes; bones are joined to the first
+            private readonly Dictionary<NiAVObject, Node> _nodes = new(ReferenceEqualityComparer.Instance);
+            private readonly Dictionary<Ni3dsSkin, FinGltfSkin> _skins = new(ReferenceEqualityComparer.Instance);
+            private readonly List<(Node Node, FinGltfSkin Skin)> _skinnedNodes = [];
             private Material? _material;
             private int _nodeCount;
 
@@ -73,36 +81,40 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 root.LocalTransform = new AffineTransform(null, FinGltfTransform.ZUpToYUp, null);
                 root.Extras = BuildRootExtras();
 
+                FindParents();
                 foreach (var block in SceneRoots())
                 {
                     AddNode(root, block, 0);
                 }
+                BindSkins();
 
                 return _model;
             }
 
-            // The file's roots, then objects no node lists as a child. Lights are the usual case: nodes list them as
-            // effects, not children, and the engine places them by their own transform.
-            private IEnumerable<NiAVObject> SceneRoots()
+            private void FindParents()
             {
-                var children = new HashSet<NiObject>(ReferenceEqualityComparer.Instance);
                 foreach (var node in _file.Objects.OfType<NiNode>())
                 {
                     foreach (var child in node.Children)
                     {
                         if (child.Target is not null)
                         {
-                            children.Add(child.Target);
+                            _parents.TryAdd(child.Target, node);
                         }
                     }
                 }
+            }
 
+            // The file's roots, then objects no node lists as a child. Lights are the usual case: nodes list them as
+            // effects, not children, and the engine places them by their own transform.
+            private IEnumerable<NiAVObject> SceneRoots()
+            {
                 var roots = _file.TopLevelObjects
                     .OfType<NiAVObject>()
                     .ToList();
                 var free = _file.Objects
                     .OfType<NiAVObject>()
-                    .Where(e => !children.Contains(e) && !roots.Contains(e));
+                    .Where(e => !_parents.ContainsKey(e) && !roots.Contains(e));
 
                 return roots.Concat(free);
             }
@@ -146,6 +158,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
                 var node = parent.CreateNode(block.Name ?? block.ClassName);
                 node.LocalTransform = FinGltfTransform.ToLocalTransform(block);
+                _nodes.TryAdd(block, node);
                 var extras = _extras.BuildNode(block);
                 if (lodLevel is not null)
                 {
@@ -155,6 +168,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 if (block is NiTriBasedGeom geometry)
                 {
                     node.Mesh = GetMesh(geometry);
+                    if (node.Mesh is not null && GetSkin(geometry) is { } skin)
+                    {
+                        _skinnedNodes.Add((node, skin));
+                    }
                     AddTextureW(extras, geometry);
                     AddNonFiniteTextureCount(extras, geometry);
                 }
@@ -170,6 +187,29 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
 
                 node.Extras = extras;
+            }
+
+            // Runs once every node exists, because a skin can come before its bones in the tree. Binding at the current
+            // (rest) transforms makes the baked vertices the bind pose, so the mesh looks the same until a bone moves.
+            private void BindSkins()
+            {
+                foreach (var (node, skin) in _skinnedNodes)
+                {
+                    var joints = new Node[skin.Bones.Count];
+                    for (var i = 0; i < joints.Length; i++)
+                    {
+                        if (!_nodes.TryGetValue(skin.Bones[i], out var joint))
+                        {
+                            throw new InvalidDataException(
+                                $"{Describe(skin.Bones[i])} moves a skinned mesh but isn't part of the exported scene"
+                            );
+                        }
+                        joints[i] = joint;
+                    }
+
+                    node.Skin = _model.CreateSkin(node.Name);
+                    node.Skin.BindJoints(node.WorldMatrix, joints);
+                }
             }
 
             private IEnumerable<(int Index, NiAVObject Child)> ExportedChildren(NiNode block)
@@ -216,21 +256,44 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 return mesh;
             }
 
+            private FinGltfSkin? GetSkin(NiTriBasedGeom geometry)
+            {
+                if (geometry is not Ni3dsSkin { SkinVertices: not null } block)
+                {
+                    return null;
+                }
+                if (!_skins.TryGetValue(block, out var skin))
+                {
+                    skin = FinGltfSkin.Create(block, _parents);
+                    _skins[block] = skin;
+                }
+
+                return skin;
+            }
+
             private Mesh? CreateMesh(NiTriBasedGeom geometry)
             {
-                if (geometry.Vertices is not { Length: > 0 } vertices)
+                if (geometry.Vertices is not { Length: > 0 })
                 {
                     return null;
                 }
 
+                var skin = GetSkin(geometry);
+                var vertices = skin?.Vertices ?? geometry.Vertices;
                 var mesh = _model.CreateMesh(geometry.Name ?? geometry.ClassName);
                 var primitive = mesh
                     .CreatePrimitive()
                     .WithVertexAccessor("POSITION", RequireFinite(geometry, "vertex", vertices));
 
-                if (NormalizeNormals(geometry.Normals) is { } normals)
+                if (NormalizeNormals(skin?.Normals ?? geometry.Normals) is { } normals)
                 {
                     primitive.WithVertexAccessor("NORMAL", normals);
+                }
+
+                if (skin is not null)
+                {
+                    primitive.SetVertexAccessor("JOINTS_0", CreateJointAccessor(skin.Joints));
+                    primitive.WithVertexAccessor("WEIGHTS_0", skin.Weights);
                 }
 
                 if (geometry.Colors is { } colors)
@@ -263,6 +326,22 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
 
                 return mesh;
+            }
+
+            // glTF requires joint indices as unsigned integers; WithVertexAccessor would store these vectors as floats
+            private Accessor CreateJointAccessor(Vector4[] joints)
+            {
+                var size = joints.Length * JOINT_SIZE;
+                var view = _model.UseBufferView(new byte[size], 0, size, JOINT_SIZE, BufferMode.ARRAY_BUFFER);
+                var accessor = _model.CreateAccessor("JOINTS_0");
+                accessor.SetVertexData(view, 0, joints.Length, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
+                var values = accessor.AsVector4Array();
+                for (var i = 0; i < joints.Length; i++)
+                {
+                    values[i] = joints[i];
+                }
+
+                return accessor;
             }
 
             private static int[] TriangleIndices(NiTriShape shape)

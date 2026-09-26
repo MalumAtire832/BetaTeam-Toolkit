@@ -1,3 +1,4 @@
+using System.Numerics;
 using Malumware.BetaTeam.Lib.IO.Fin;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
 using Malumware.BetaTeam.Lib.IO.Fin.Gltf;
@@ -10,6 +11,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
 {
     public class FinGltfGameDataTests
     {
+        // Models are about 50 units tall; this is float noise after inverting and multiplying the bone matrices
+        private const float MAX_REST_POSE_ERROR = 1e-3f;
+
         private readonly ITestOutputHelper _output;
 
         public FinGltfGameDataTests(ITestOutputHelper output)
@@ -91,6 +95,62 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             }
 
             // Assert
+            Assert.Empty(failures);
+        }
+
+        // Every skin is bound to its bones, and at rest skinning leaves each vertex where the baked mesh puts it
+        [GameDataFact]
+        public void ToGlb_BindsEverySkin_AtItsRestPose()
+        {
+            // Arrange
+            var failures = new List<string>();
+            var skins = 0;
+
+            // Act
+            foreach (var (name, data) in FinGameDataTests.FinFiles())
+            {
+                var model = new FinToGltfConverter().ToModel(FinReader.Read(name, data));
+                var nodes = model.LogicalNodes
+                    .Where(e => e.Mesh?.Primitives[0].GetVertexAccessor("JOINTS_0") is not null)
+                    .ToList();
+                foreach (var node in nodes)
+                {
+                    skins++;
+                    if (node.Skin is null)
+                    {
+                        failures.Add($"{name} {node.Name}: has joints but no skin");
+                        continue;
+                    }
+
+                    var primitive = node.Mesh.Primitives[0];
+                    var positions = primitive
+                        .GetVertexAccessor("POSITION")
+                        .AsVector3Array();
+                    var joints = primitive
+                        .GetVertexAccessor("JOINTS_0")
+                        .AsVector4Array();
+                    for (var i = 0; i < positions.Count; i++)
+                    {
+                        var (joint, inverseBindMatrix) = node.Skin.GetJoint((int)joints[i].X);
+                        var skinned = Vector3.Transform(positions[i], inverseBindMatrix * joint.WorldMatrix);
+                        var baked = Vector3.Transform(positions[i], node.WorldMatrix);
+                        if (Vector3.Distance(skinned, baked) > MAX_REST_POSE_ERROR)
+                        {
+                            failures.Add($"{name} {node.Name}: vertex {i} moves {Vector3.Distance(skinned, baked)} at rest");
+                            break;
+                        }
+                    }
+                }
+            }
+
+            _output.WriteLine($"{skins} skinned meshes");
+            foreach (var failure in failures)
+            {
+                _output.WriteLine(failure);
+            }
+
+            // Assert
+            Assert.NotEqual(0, skins);
             Assert.Empty(failures);
         }
     }

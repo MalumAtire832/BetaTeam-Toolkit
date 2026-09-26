@@ -45,6 +45,44 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                 .UInt16(0).UInt16(1).UInt16(lastIndex);
         }
 
+        // A bone with the given transform and no animation keys
+        private static FinStreamBuilder Bone(
+            FinStreamBuilder builder, uint linkId, string name, float[] translation, float[] rotation, uint[] children)
+        {
+            return builder.SizedString("Ni3dsBone").NiObject(linkId, name)
+                .Byte(0)
+                .Floats(translation)
+                .Floats(rotation)
+                .Floats(1)
+                .Floats(0, 0, 0)
+                .Refs()
+                .UInt32(0)
+                .UInt32(0)
+                .NiNodeFields(children, [])
+                .UInt32(0).Byte(0).Byte(0).Byte(0).Byte(1).UInt32(0)    // animation settings
+                .Floats(0, 1, 0, 0, 0)
+                .Int32(0).Int32(0).Int32(0).Int32(0);                   // no rotation, position, scale or visibility keys
+        }
+
+        // A triangle whose stored vertices are far off, skinned to the bones 0x20 (vertex 0) and 0x30 (vertices 1, 2)
+        private static FinStreamBuilder Skin(FinStreamBuilder builder, uint linkId)
+        {
+            return builder.SizedString("Ni3dsSkin").NiObject(linkId, "Skin")
+                .NiAVObjectFields()
+                .UInt16(3)                                                  // vertex count
+                .UInt32(PRESENT).Floats(100, 0, 0, 100, 1, 0, 100, 0, 1)    // stored vertices, never drawn
+                .UInt32(PRESENT).Floats(0, 0, 1, 1, 0, 0, 0, 0, 1)          // normals
+                .Floats(0, 0, 0, 200)                                       // bound
+                .UInt16(1).UInt16(0)                                        // triangles, texture sets
+                .UInt32(0).UInt32(0).UInt32(0)                              // no texture coordinates, colours, planes
+                .UInt16(0).UInt16(1).UInt16(2)
+                .Byte(0)                                                    // unknown
+                .Byte(1)                                                    // has skin data
+                .UInt16(1).Floats(1, 0, 0, 0).UInt32(0x20)
+                .UInt16(1).Floats(0.25f, 1, 0, 0).UInt32(0x30)              // a single bone counts in full
+                .UInt16(1).Floats(1, 0, 1, 0).UInt32(0x30);
+        }
+
         private static FinStreamBuilder Material(FinStreamBuilder builder, uint linkId)
         {
             return builder.SizedString("NiMaterialProperty").NiObject(linkId)
@@ -62,6 +100,11 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         private static Node SceneRoot(ModelRoot model)
         {
             return Assert.Single(model.DefaultScene.VisualChildren);
+        }
+
+        private static Vector3 Round(Vector3 v)
+        {
+            return new Vector3(MathF.Round(v.X, 4), MathF.Round(v.Y, 4), MathF.Round(v.Z, 4));
         }
 
         private static JsonObject Extras(Node node)
@@ -159,6 +202,55 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             Assert.Equal([Vector2.Zero, new Vector2(2, 0), new Vector2(0, -1)], coordinates);
             var box = Assert.Single(SceneRoot(model).VisualChildren);
             Assert.Equal(2, Extras(box)["NonFiniteTextureCoordinates"]!.GetValue<int>());
+        }
+
+        [Fact]
+        public void ToGlb_BakesVerticesFromBonesAndBindsThem_WhenShapeIsSkinned()
+        {
+            // Arrange
+            var builder = Node(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", [0x20, 0x40]);
+            builder = Bone(builder, 0x20, "Upper", [0, 0, 10], [0, -1, 0, 1, 0, 0, 0, 0, 1], [0x30]);    // turned 90° about Z
+            builder = Bone(builder, 0x30, "Lower", [2, 0, 0], [1, 0, 0, 0, 1, 0, 0, 0, 1], []);
+            builder = builder.SizedString("NiNode").NiObject(0x40, "auto geom parent")
+                .Byte(0).Floats(5, 0, 0).Floats(1, 0, 0, 0, 1, 0, 0, 0, 1).Floats(1).Floats(0, 0, 0)
+                .Refs().UInt32(0).UInt32(0)
+                .NiNodeFields([0x50], []);
+            var bytes = Skin(builder, 0x50).EndOfFile().ToArray();
+
+            // Act
+            var model = Convert(bytes);
+
+            // Assert
+            var node = Assert.Single(model.LogicalNodes, e => e.Name == "Skin");
+            var primitive = Assert.Single(node.Mesh.Primitives);
+            var positions = primitive
+                .GetVertexAccessor("POSITION")
+                .AsVector3Array();
+            var joints = primitive
+                .GetVertexAccessor("JOINTS_0")
+                .AsVector4Array();
+            var weights = primitive
+                .GetVertexAccessor("WEIGHTS_0")
+                .AsVector4Array();
+            var normals = primitive
+                .GetVertexAccessor("NORMAL")
+                .AsVector3Array();
+            Assert.Equal([new Vector3(0, 0, 10), new Vector3(0, 3, 10), new Vector3(-1, 2, 10)], positions.Select(Round));
+            Assert.Equal(EncodingType.UNSIGNED_SHORT, primitive.GetVertexAccessor("JOINTS_0").Encoding);
+            Assert.Equal([Vector4.Zero, Vector4.UnitX, Vector4.UnitX], joints);
+            Assert.All(weights, e => Assert.Equal(Vector4.UnitX, e));
+            Assert.Equal(Vector3.UnitY, Round(normals[1]));
+
+            Assert.Equal(["Upper", "Lower"], Enumerable
+                .Range(0, node.Skin.JointsCount)
+                .Select(e => node.Skin.GetJoint(e).Joint.Name));
+            for (var i = 0; i < positions.Count; i++)
+            {
+                // At rest, skinning must put each vertex where the mesh itself sits
+                var (joint, inverseBindMatrix) = node.Skin.GetJoint((int)joints[i].X);
+                var skinned = Vector3.Transform(positions[i], inverseBindMatrix * joint.WorldMatrix);
+                Assert.Equal(Round(Vector3.Transform(positions[i], node.WorldMatrix)), Round(skinned));
+            }
         }
 
         [Fact]

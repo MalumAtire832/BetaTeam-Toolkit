@@ -48,9 +48,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             return new AffineTransform(matrix);
         }
 
-        // NetImmerse rotates a point as R·v with the groups of the stored matrix as the rows of R (inferred from the
-        // engine family: NiMatrix3 keeps m_pEntry[row][column] and NiAVObject combines transforms as parent·child,
-        // not yet confirmed in this game's code). System.Numerics works with row vectors, v·M, so M = Rᵀ.
+        // NetImmerse rotates a point as R·v with the groups of the stored matrix as the rows of R, and combines
+        // transforms as parent·child (confirmed by the game's skin deformation). System.Numerics works with row
+        // vectors, v·M, so M = Rᵀ.
         internal static Matrix4x4 ToRowVectorMatrix(FinMatrix3 m)
         {
             return new Matrix4x4(

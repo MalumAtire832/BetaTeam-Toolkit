@@ -60,8 +60,11 @@ Blender can import:
   coordinates were affected, as `NonFiniteTextureCoordinates`. In Blender this makes no visible difference, since
   textures aren't converted yet and the default material doesn't use the second texture set. Once textures are
   converted, an affected triangle will show one texel of its texture.
+- A skinned mesh (`Ni3dsSkin`) is written the way the game draws it, not with its stored vertices, which are in
+  another frame (see [Skinned meshes](#skinned-meshes)). Its vertices are placed by their bones at rest, and the
+  bones become the joints of a glTF skin. Blender imports them as an armature, and posing a bone moves the mesh.
 
-Animation, skinning and morphing aren't converted yet; their data is in the extras.
+Animation and morphing aren't converted yet; their data is in the extras.
 
 ## Header
 
@@ -163,10 +166,9 @@ relative to the shape that holds them. Where an object ends up in the world is t
 from the root down to it. A converter that copies vertices without applying those transforms puts every part at the
 origin in its own orientation.
 
-Whether the three groups of the rotation matrix are rows or columns in the engine's maths is still to be confirmed.
-Readers should keep the nine values in file order and decide when converting. The glTF converter takes each group as a
-row of the matrix that rotates a point as *R · v*, which is how later NetImmerse and Gamebryo versions store it. That
-it holds for this game is *inferred*, not yet confirmed in its code.
+The three groups of the rotation matrix are its rows: the engine rotates a point as *R · v*, with the first group
+giving the new x, the second the new y and the third the new z. This is how later NetImmerse and Gamebryo versions
+store it too, and the game's skinning code confirms it: it applies the combined bone matrices to vertices this way.
 
 ### NiNode
 
@@ -459,6 +461,21 @@ frequency (playback speed, usually `1`), phase, begin key time and end key time.
 A skinned mesh's vertices move with the bones that influence them: each vertex has a list of bones, how strongly each
 one pulls it, and where the vertex sits relative to that bone. A morph shape keeps several complete sets of vertex
 positions and blends between them.
+
+### Skinned meshes
+
+The game never draws a skin's stored vertices. It builds every vertex from its bones instead: the vertex's offset,
+moved by the bone's transform, and with several bones a weighted sum of those. The stored vertices are in another
+frame, probably the pose the model had in 3ds Max, and a converter that uses them puts the parts in the wrong place.
+
+A bone's transform here is the chain of local transforms from the *root bone* down to it. The root bone is the first
+bone in the chain whose parent isn't a bone, and nothing above it counts. The result is placed by the skin's own
+transform, so the skin and its root bone's parent should sit in the same place. In the shipped files they do: the
+skin is under an "auto geom parent" node with no transform of its own, next to the root bone or a few untransformed
+levels away.
+
+In every shipped skin, each vertex follows exactly one bone. With one bone the game ignores the weight and moves the
+vertex with the bone in full, so body parts move rigidly, like the parts of a minifigure.
 
 ## Digital Domain classes
 

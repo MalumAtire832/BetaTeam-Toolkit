@@ -108,7 +108,8 @@ betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 ### `convert fin gltf` — Convert FIN models to glTF
 
 Converts `.FIN` models to binary glTF (`.glb`) for importing into Blender. The node hierarchy and each object's
-transform are kept, and the fields that aren't geometry show up as custom properties.
+transform are kept, skinned meshes are bound to their bones as an armature, and the fields that aren't geometry show
+up as custom properties.
 See [docs/formats/fin.md](docs/formats/fin.md#converting-to-gltf).
 
 ```
