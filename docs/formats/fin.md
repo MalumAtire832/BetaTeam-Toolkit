@@ -33,6 +33,51 @@ from the code is marked *inferred*.
 expands every array. Given a directory and `-o`, it dumps every file into its own `.txt` or `.json`. The JSON nests as
 deep as the scene tree, which can go past the default depth limit of some JSON libraries.
 
+### Converting to NIF
+
+`betateam convert fin nif <input> <output>` writes a FIN file, or every FIN file in a directory, as a NIF file that
+NifSkope can open. The output is NetImmerse 4.0.0.2, Morrowind's version, rather than one of the 3.x versions FIN
+descends from: nif.xml, the block definitions NifSkope reads files with, marks 3.1 and older as not fully supported,
+and FIN's blocks don't match 3.1's anyway (name and extra data on `NiObject`, geometry inside the shape, no flags).
+
+- The scene tree is kept. Nodes and shapes keep their names, transforms, velocities and properties. `DDUnit`,
+  `DDEnv` and the `Ni3ds...` nodes become `NiNode`s; every shape, `DDCorona` included, becomes a `NiTriShape` with
+  its geometry in a separate `NiTriShapeData`, the way NIF stores it. Where the class changes, a `FinClass` string
+  extra data keeps the original name. Empty child slots stay empty, so a `NiLODNode`'s ranges still line up.
+- `AppCulled` becomes NIF's hidden flag. A billboard's mode goes into flag bits 5 and 6, taking FIN's `0` to `2` to be
+  NIF's billboard modes (*inferred*).
+- The rotation's nine floats are copied in file order. That is right if both engines save the matrix the same way,
+  which is *inferred* (#8).
+- Texture coordinates lose their third component. Triangle planes are dropped: NIF has none, and they follow from
+  the triangles.
+- NIF keeps all texture settings in one `NiTexturingProperty`, where FIN spreads them over `NiTextureProperty`,
+  `NiTextureModeProperty` and `NiMultiTextureProperty`, each inherited on its own. The export follows which of them
+  are in effect at each object and writes a `NiTexturingProperty` wherever that combination changes. The image the
+  texture property shows goes into the base slot; when it has more (an animated texture), they are listed in an
+  `Images` string. Multi-texture stages fill the next free slots in order (base, dark, detail, gloss, glow, decal 0),
+  each with its own texture coordinate set, and their combine modes are kept as `CombineModes`. Which NIF slot suits
+  which stage is *inferred*.
+- Apply, filter, clamp and alpha blend modes are copied as numbers, taking FIN's numbering to be the one nif.xml
+  documents for later NetImmerse versions (*inferred*, #15). `NiVertexColorProperty`'s colour mode has no NIF
+  equivalent: NIF's defaults are written and the value kept as `ColorMode`.
+- `DDActorSharedData` becomes string extra data on the actor's node (`Type`, `Description`, `Behavior`,
+  `MakeShadow`, `Prop`, `ShadowMultiplier`, `FloorPoints`, `SkillSound`), and the skills become text keys
+  `<skill>: start` and `<skill>: stop` at their stored times.
+- Spheres, boxes and unions of them become NIF bounding volumes. The other collision shapes, and inverted ones, are
+  described in a `BoundingVolume` string instead (#18).
+- NIF has one center for all of a `NiLODNode`'s ranges. The first range's is used, and all of them are listed in
+  `LodCenters` when they differ.
+- Lights (#16) and animation (#17) aren't exported yet. The command lists what each file loses.
+
+The string extra data names are this toolkit's, not the game's. `scripts/check-nif.py` reads NIF files field by field
+as nif.xml describes them, and reports a file that doesn't fit, a link to a missing block or to the wrong kind of
+block, or leftover bytes:
+
+```bash
+curl -sSLO https://raw.githubusercontent.com/niftools/nifxml/develop/nif.xml
+scripts/check-nif.py nif.xml <nif file or directory>
+```
+
 ## Header
 
 A FIN file starts with one line of text:
