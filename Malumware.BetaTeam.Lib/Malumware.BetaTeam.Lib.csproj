@@ -15,4 +15,8 @@
       <InternalsVisibleTo Include="Malumware.BetaTeam.Lib.Tests" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.7" />
+    </ItemGroup>
+
 </Project>

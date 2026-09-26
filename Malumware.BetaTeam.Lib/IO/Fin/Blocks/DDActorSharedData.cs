@@ -20,7 +20,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
 
         // Engine: GetShadowMult
         public float ShadowMultiplier { get; private set; }
-        public uint Unknown74 { get; private set; }
+        // Squared distance from the camera beyond which a character swaps its skinned meshes for the flat stand-ins
+        // named "LOD_..." (350² or 450² in shipped characters). 0 means the object never swaps.
+        public float LodDistanceSquared { get; private set; }
         public IReadOnlyList<FinSkill> Skills { get; private set; } = [];
         public IReadOnlyList<FinAnimationTrack> Tracks { get; private set; } = [];
         // Engine: GetFloorPts
@@ -34,7 +36,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
             MakeShadow = reader.ReadByte() != 0;
             IsProp = reader.ReadByte() != 0;
             ShadowMultiplier = reader.ReadSingle();
-            Unknown74 = reader.ReadUInt32();
+            LodDistanceSquared = reader.ReadSingle();
 
             var skillCount = reader.ReadSignedCount(4);
             Skills = reader.ReadArray(skillCount, FinSkill.Read);

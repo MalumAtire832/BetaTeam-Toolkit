@@ -51,6 +51,44 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
             Assert.Empty(failures);
         }
 
+        // The flat "LOD_" stand-ins only make sense when the object swaps them in at a distance, and the other way round
+        [GameDataFact]
+        public void Read_HasStandIns_OnlyWhenLodDistanceIsSet()
+        {
+            // Arrange
+            var failures = new List<string>();
+            var withStandIns = 0;
+
+            // Act
+            foreach (var (name, data) in FinFiles())
+            {
+                var file = FinReader.Read(name, data);
+                var hasStandIns = file.Objects
+                    .OfType<NiAVObject>()
+                    .Any(e => e.Name?.StartsWith("LOD_", StringComparison.Ordinal) == true);
+                var swaps = file.Objects
+                    .OfType<DDActorSharedData>()
+                    .Any(e => e.LodDistanceSquared > 0);
+                if (hasStandIns)
+                {
+                    withStandIns++;
+                }
+                if (hasStandIns != swaps)
+                {
+                    failures.Add($"{name}: LOD_ nodes {hasStandIns}, LOD distance set {swaps}");
+                }
+            }
+
+            foreach (var failure in failures)
+            {
+                _output.WriteLine(failure);
+            }
+
+            // Assert
+            Assert.NotEqual(0, withStandIns);
+            Assert.Empty(failures);
+        }
+
         [GameDataFact]
         public void Read_ReturnsTrianglesWithinVertexCount_ForEveryShippedShape()
         {
