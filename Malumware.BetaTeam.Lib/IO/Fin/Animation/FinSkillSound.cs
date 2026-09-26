@@ -1,6 +1,8 @@
 namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
 {
-    // A sound a skill plays. The meaning of the three flags is inferred from how the game passes them on.
+    // A sound a skill plays. The engine loads FileName from its "AudioDir" setting and passes the values to its sound
+    // source: Gain to Sound_SetGain, DistanceModelScale to SetDistanceModelScale, Min/MaxDistance and DistanceFlag to
+    // SetMinMaxDistance. Delay holds playback back until that time into the skill. The flag names are inferred.
     public sealed record FinSkillSound(
         string? FileName,
         string? NodeName,

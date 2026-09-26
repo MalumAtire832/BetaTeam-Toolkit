@@ -5,16 +5,17 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
 {
     public class NiAVObject : NiObject
     {
-        // Hidden by the game rather than by culling
+        // Hidden by the game rather than by culling (engine: GetAppCulled)
         public bool AppCulled { get; private set; }
 
         public Vector3 Translation { get; private set; }
         public FinMatrix3 Rotation { get; private set; }
         public float Scale { get; private set; }
+        // Engine: GetLocalVelocity
         public Vector3 Velocity { get; private set; }
         public IReadOnlyList<FinRef<NiProperty>> Properties { get; private set; } = [];
 
-        // The engine's PropagateMode enum; which number means what isn't confirmed yet
+        // The engine's PropagateMode enum (GetCollisionPropagate); which number means what isn't confirmed yet
         public uint CollisionPropagate { get; private set; }
 
         // Collision shape, stored inline

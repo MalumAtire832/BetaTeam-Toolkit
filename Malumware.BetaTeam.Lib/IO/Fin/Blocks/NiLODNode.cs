@@ -4,6 +4,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
     public class NiLODNode : NiSwitchNode
     {
         public FinLodRange[] Ranges { get; private set; } = [];
+        // Engine: GetPositionInRange; its effect isn't confirmed
         public bool PositionInRange { get; private set; }
 
         internal override void Load(FinBlockReader reader)

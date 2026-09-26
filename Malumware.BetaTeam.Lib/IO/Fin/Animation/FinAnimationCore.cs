@@ -1,7 +1,8 @@
 namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
 {
-    // Playback settings shared by every 3ds animation class. Times are in the exporter's units (3ds Max ticks,
-    // inferred from values like 3200 and 12800).
+    // Playback settings shared by every 3ds animation class. The names follow the engine's getters (GetAnimType,
+    // GetCycleType, GetFrequency, GetPhase, GetBeginKeyTime, GetEndKeyTime, ...). Times are in the exporter's units:
+    // 3ds Max ticks, 4800 per second (inferred from values like 3200 and 12800).
     public sealed record FinAnimationCore(
         uint AnimationType,
         byte Unknown08,

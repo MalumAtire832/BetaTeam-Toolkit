@@ -7,7 +7,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks.BoundingVolumes
         public Vector3 Center { get; private set; }
         public float Radius { get; private set; }
 
-        // Collides from the inside instead of the outside
+        // Collides from the inside instead of the outside (engine: IsInverted)
         public bool Inverted { get; private set; }
 
         internal override void Load(FinBlockReader reader, int depth)

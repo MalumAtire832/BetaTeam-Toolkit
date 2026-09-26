@@ -4,8 +4,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
     public class NiImage : NiObject
     {
         public bool External { get; private set; }
+        // A bare file name; the engine resolves it against its texture folders when loading
         public string? FileName { get; private set; }
         public FinRef<NiObject> RawData { get; private set; } = new(0);
+        // Engine: GetPreferredTextureFormat
         public uint PreferredTextureFormat { get; private set; }
 
         internal override void Load(FinBlockReader reader)

@@ -2,7 +2,8 @@ using System.Numerics;
 
 namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
 {
-    // One class for every kind of light; LightType tells them apart
+    // One class for every kind of light; LightType tells them apart. The field names follow the engine's getters
+    // (GetLocation, GetDimmer, GetAttenuationCurve, ...).
     public class NiLight : NiAVObject
     {
         public Vector3 Location { get; private set; }

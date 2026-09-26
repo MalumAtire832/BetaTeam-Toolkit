@@ -1,7 +1,8 @@
 namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
 {
-    // A named clip on the actor's animation timeline (such as "neutral"), from StartTime to EndTime. The index lists
-    // say which of the actor's animated parts the clip drives.
+    // A named clip on the actor's animation timeline (such as "neutral"), from StartTime to EndTime; the engine's
+    // DDSkill::GetDuration is EndTime - StartTime. The index lists point into the actor's animation node, action and
+    // "etc" arrays (engine: GetAnimNodeArray, GetActionArray, GetAnimEtcArray).
     public sealed record FinSkill(
         string? Name,
         float StartTime,

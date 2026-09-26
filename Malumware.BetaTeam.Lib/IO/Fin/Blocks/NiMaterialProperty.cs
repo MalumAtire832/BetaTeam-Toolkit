@@ -6,6 +6,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
         public FinColor3 DiffuseColor { get; private set; }
         public FinColor3 SpecularColor { get; private set; }
         public FinColor3 Emittance { get; private set; }
+        // The engine spells it GetShineness
         public float Shininess { get; private set; }
         public float Alpha { get; private set; }
 

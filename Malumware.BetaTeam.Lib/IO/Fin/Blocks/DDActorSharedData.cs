@@ -7,16 +7,23 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
     // keyframe tracks and floor points. The object name is the type name (such as the unit ID).
     public class DDActorSharedData : NiObject
     {
+        // Engine: GetDescription
         public string? Description { get; private set; }
         // The behaviour DLL (in Bhvr.pac) that holds the object's code, without ".dll". When absent, the engine's
         // LoadActorDLL uses the type name, so objects without code of their own can share another object's DLL.
         public string? BehaviorName { get; private set; }
+        // Engine: GetMakeShadow
         public bool MakeShadow { get; private set; }
+
+        // Engine: IsProp
         public bool IsProp { get; private set; }
+
+        // Engine: GetShadowMult
         public float ShadowMultiplier { get; private set; }
         public uint Unknown74 { get; private set; }
         public IReadOnlyList<FinSkill> Skills { get; private set; } = [];
         public IReadOnlyList<FinAnimationTrack> Tracks { get; private set; } = [];
+        // Engine: GetFloorPts
         public Vector3[] FloorPoints { get; private set; } = [];
 
         internal override void Load(FinBlockReader reader)

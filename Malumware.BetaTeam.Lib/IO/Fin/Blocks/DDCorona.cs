@@ -4,7 +4,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
     // builds its triangles when drawing, so none are stored.
     public class DDCorona : NiTriBasedGeom
     {
-        // Size of the glow; zero or less means the object's scale is used instead
+        // Size of the glow (engine: the size argument of MakeCorona); zero or less means the object's scale is used
         public float Size { get; private set; }
 
         internal override void Load(FinBlockReader reader)

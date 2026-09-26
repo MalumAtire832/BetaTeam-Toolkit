@@ -2,7 +2,8 @@ using System.Numerics;
 
 namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
 {
-    // 3ds Max rotation keys keep the angle and axis they were made with next to the quaternion
+    // 3ds Max rotation keys keep the angle and axis they were made with next to the quaternion (engine: GetAngle,
+    // GetAxis, GetQuaternion, GetExtraSpins)
     public abstract record FinRotKey(float Time, float Angle, Vector3 Axis, FinQuaternion Quaternion, int ExtraSpins, uint Unknown2C);
 
     public sealed record FinLinearRotKey(float Time, float Angle, Vector3 Axis, FinQuaternion Quaternion, int ExtraSpins, uint Unknown2C)
