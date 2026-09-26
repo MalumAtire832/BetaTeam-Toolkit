@@ -6,38 +6,39 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
     {
         public PacArchive Read(string filePath)
         {
-            using var mmf = MemoryMappedFile.CreateFromFile(
-                filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read
-            );
-            return Read(filePath, () => CreateStream(mmf));
+            using (var mmf = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
+            {
+                return Read(filePath, () => CreateStream(mmf));
+            }
         }
 
         internal PacArchive Read(string filePath, Func<Stream> streamFactory)
         {
             var fileName = Path.GetFileNameWithoutExtension(filePath);
             
-            using var headerParser = new PacArchiveHeaderParser(streamFactory());
-            using var directoryParser = new PacArchiveDirectoryParser(streamFactory());
-            using var dataParser = new PacArchiveEntryDataParser(streamFactory());
-
-            var header = headerParser.Parse();
-
-            directoryParser.Seek(PacArchiveHeader.SIZE, SeekOrigin.Begin);
-            var directory = directoryParser.Parse();
-
-            var entries = new Dictionary<PacArchiveEntry, byte[]>(directory.Count);
-            foreach (var entry in directory)
+            using (var headerParser = new PacArchiveHeaderParser(streamFactory()))
+            using (var directoryParser = new PacArchiveDirectoryParser(streamFactory()))
+            using (var dataParser = new PacArchiveEntryDataParser(streamFactory()))
             {
-                if (IsSelfReference(entry, filePath))
+                var header = headerParser.Parse();
+
+                directoryParser.Seek(PacArchiveHeader.SIZE, SeekOrigin.Begin);
+                var directory = directoryParser.Parse();
+
+                var entries = new Dictionary<PacArchiveEntry, byte[]>(directory.Count);
+                foreach (var entry in directory)
                 {
-                    continue;
+                    if (IsSelfReference(entry, filePath))
+                    {
+                        continue;
+                    }
+
+                    var data = dataParser.Parse(entry);
+                    entries.Add(entry, data);
                 }
 
-                var data = dataParser.Parse(entry);
-                entries.Add(entry, data);
+                return new PacArchive(fileName, header, entries);
             }
-
-            return new PacArchive(fileName, header, entries);
         }
 
         // The original packing tool recorded some archives inside themselves as an empty entry,

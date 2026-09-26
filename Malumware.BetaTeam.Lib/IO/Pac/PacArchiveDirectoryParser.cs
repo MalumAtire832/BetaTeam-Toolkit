@@ -15,6 +15,7 @@ namespace Malumware.BetaTeam.Lib.IO.Pac
         {
             var entries = new List<PacArchiveEntry>();
             ParseDirectory(string.Empty, entries);
+
             return entries;
         }
 
