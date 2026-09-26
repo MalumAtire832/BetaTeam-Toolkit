@@ -44,6 +44,19 @@ sample rate, byte rate, block align, bits per sample, extra size).
 The converter wraps the raw PCM data in a standard RIFF/WAVE envelope to produce a valid `.wav` file.
 See [docs/formats/dds-audio.md](docs/formats/dds-audio.md).
 
+### String Tables
+All text the player reads lives in `.TXT` string tables in `Locale_en.pac`. They are Windows-1252 text files of
+`==Key==` tag lines, each followed by its value on the next lines, with `#` comments and backslash escapes. The game
+loads every table into one shared, case-insensitive lookup where the first occurrence of a key wins.
+See [docs/formats/string-tables.md](docs/formats/string-tables.md).
+
+### FIN Models
+`.FIN` files hold every 3D object in the game: environments, units, level objects and characters. Each is a
+NetImmerse scene graph in the early, pre-NIF stream layout, extended with Digital Domain classes that carry an
+object's description, behaviour DLL, shadow settings, named animation clips with their sounds, and floor points.
+The library reads every shipped file; export to glTF and NIF is not implemented yet.
+See [docs/formats/fin.md](docs/formats/fin.md).
+
 
 ## CLI
 
@@ -114,6 +127,32 @@ Examples:
 ```bash
 betateam convert fin gltf /game/extracted/Fin /game/gltf
 betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --all-lods
+```
+
+### `fin dump` — Inspect FIN models
+
+Dumps the block tree of a `.FIN` file, with every field, as a text tree or as JSON. A single file goes to the terminal
+unless `--output` is given. A directory is dumped into one `.txt` or `.json` file per model; a file that fails to
+read is reported and the rest carry on.
+
+```
+betateam fin dump <INPUT> [--output <path>] [--json] [--full] [--mask <pattern>]
+```
+
+| Argument / Option | Description                                                    | Default |
+|-------------------|----------------------------------------------------------------|---------|
+| `INPUT`           | A `.FIN` file, or a directory of them                          | —       |
+| `-o`, `--output`  | Output file, or output directory (required for a directory)    | stdout  |
+| `--json`          | Write JSON instead of a text tree                              | off     |
+| `--full`          | Write every array and key value instead of a summary           | off     |
+| `-m`, `--mask`    | File glob pattern when `INPUT` is a directory                  | `*.FIN` |
+
+Examples:
+
+```bash
+betateam fin dump /game/extracted/Fin/U0207.FIN
+betateam fin dump /game/extracted/Fin/U0207.FIN --json --full -o U0207.json
+betateam fin dump /game/extracted/Fin -o /game/dumps --json
 ```
 
 ## Reverse Engineering Setup
