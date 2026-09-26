@@ -24,13 +24,13 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             // Arrange
             var failures = new List<string>();
             var settings = new ReadSettings { Validation = ValidationMode.Strict };
-            var count = 0;
+            var files = FinGameDataTests.FinFiles().ToList();
             var meshesWithoutNormals = 0;
 
             // Act
-            foreach (var (name, data) in FinGameDataTests.FinFiles())
+            for (var i = 0; i < files.Count; i++)
             {
-                count++;
+                var (name, data) = files[i];
                 var file = FinReader.Read(name, data);
                 foreach (var allLevelsOfDetail in new[] { false, true })
                 {
@@ -51,14 +51,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                 }
             }
 
-            _output.WriteLine($"{count} files, {meshesWithoutNormals} meshes without normals");
+            _output.WriteLine($"{files.Count} files, {meshesWithoutNormals} meshes without normals");
             foreach (var failure in failures)
             {
                 _output.WriteLine(failure);
             }
 
             // Assert
-            Assert.NotEqual(0, count);
+            Assert.NotEmpty(files);
             Assert.Empty(failures);
         }
 
