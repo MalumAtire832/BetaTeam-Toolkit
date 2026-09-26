@@ -7,17 +7,31 @@ early NetImmerse, before the format gained block sizes and a block type table, w
 
 The file names follow the IDs the rest of the game uses:
 
-| Prefix | Files | Contents                                                                                     |
+| Prefix | Files | Contents (from the objects' own descriptions)                                               |
 |--------|-------|----------------------------------------------------------------------------------------------|
 | `E`    | 54    | Environments. Each mission's puzzle file names one, together with its ambient sound and lightmaps |
-| `U`    | 42    | Units, matching IDs in the unit tables (inferred from the IDs)                               |
-| `OG`   | 34    | Other objects placed in levels (inferred)                                                    |
-| `B`    | 7     | Inferred from the IDs only                                                                   |
-| `T`    | 7     | Inferred from the IDs only                                                                   |
-| `BA`, `CU`, `P` | 1 each | Inferred from the IDs only                                                          |
+| `U`    | 42    | Units the player builds with (`Diving Board`, `Catapult`, `Launcher`)                        |
+| `OG`   | 34    | Objects placed in levels (`Lever Activator`, `One-Light Door Panel`, `Ogel Laser`)           |
+| `B`    | 7     | Characters (`Evil Ogel`, `Guard`, `Sentry`, `Assembly Line Worker`)            |
+| `T`    | 7     | Specialists (`Motion Specialist`, `Rope Specialist`) and `Tee Vee`                 |
+| `BA`, `CU`, `P` | 1 each | `Goody`, `CORD`, and `Low Crate Stack`, the only prop                              |
 
-Environments have no code of their own, but 62 of the other 93 files have a behaviour DLL with the same ID in
-`Bhvr.pac`, which holds the code for that object.
+Every object's behaviour is code in a DLL in `Bhvr.pac`. Most objects have a DLL with their own ID; the others,
+including all environments, name the DLL they share (see [DDUnit and DDEnv](#ddunit-and-ddenv)).
+
+### Where the names come from
+
+Field names follow the game's own code wherever it names them, for example through a getter such as `GetShadowMult`.
+Those names are given in the tables as *engine: `GetShadowMult`*. Some values come from the tools the models were
+made with rather than from the game: 3ds Max object names and animation ticks, and memory addresses the exporter
+saved along with the data. The text says so where it matters. Anything else that is reasoned out rather than read
+from the code is marked *inferred*.
+
+### Inspecting files
+
+`betateam fin dump <file>` prints a file's block tree with every field, `--json` writes it as JSON and `--full`
+expands every array. Given a directory and `-o`, it dumps every file into its own `.txt` or `.json`. The JSON nests as
+deep as the scene tree, which can go past the default depth limit of some JSON libraries.
 
 ## Header
 
@@ -80,8 +94,9 @@ the same.
 ## Classes
 
 Each class reads the fields of its parent class first, then its own. The tables below list only a class's own
-fields, in file order. Types: `u8`/`u32` unsigned integers, `f32` a 32-bit float, `bool` a `u8` that is `0` or `1`,
-`vec3` three `f32` (x, y, z), `link` a `u32` link ID, `link[]` a `u32` count followed by that many links.
+fields, in file order. Types: `u8`/`u16`/`u32` unsigned integers, `i32` a signed integer, `f32` a 32-bit float,
+`bool` a `u8` that is `0` or `1`, `vec3` three `f32` (x, y, z), `link` a `u32` link ID, `link[]` a `u32` count
+followed by that many links. Where the engine reads a count as signed, a negative count means none.
 
 ### NiObject
 
@@ -90,7 +105,7 @@ The base of every block.
 | Type      | Field      | Meaning                                                                           |
 |-----------|------------|-----------------------------------------------------------------------------------|
 | `u32`     | link ID    | This object's ID, used by other blocks to refer to it (see [Links](#links))       |
-| C string  | name       | The object's name, as set in 3ds Max (`Box01`, `Dummy Object`). Often absent      |
+| C string  | name       | The object's name, as set in 3ds Max (`Box01`). Often absent                     |
 | `u32`     | extra data | Number of extra data entries that follow                                          |
 | (varies)  | entries    | Each one: a C string with the extra data's class name, then that class's fields   |
 
@@ -104,13 +119,13 @@ Parent of everything that has a place in the scene: nodes, shapes, lights.
 
 | Type      | Field               | Meaning                                                                        |
 |-----------|---------------------|--------------------------------------------------------------------------------|
-| `bool`    | app culled          | Hidden by the game ("application culled"), as opposed to culled because it's off-screen |
+| `bool`    | app culled          | Hidden by the game, as opposed to culled because it's off-screen (engine: `GetAppCulled`) |
 | `vec3`    | translation         | Position relative to the parent                                                |
 | 9 × `f32` | rotation            | 3×3 rotation matrix relative to the parent, as three groups of three floats    |
 | `f32`     | scale               | Uniform scale relative to the parent                                           |
-| `vec3`    | velocity            | Local velocity                                                                 |
+| `vec3`    | velocity            | Local velocity (engine: `GetLocalVelocity`)                                    |
 | `link[]`  | properties          | Render properties (material, texture, alpha, ...) that apply to this object and everything below it |
-| `u32`     | collision propagate | How collision tests treat this object's children. Which value means what hasn't been confirmed |
+| `u32`     | collision propagate | How collision tests treat this object's children (engine: `GetCollisionPropagate`). Which value means what hasn't been confirmed |
 | `u32`     | has bounding volume | Non-zero if a collision shape follows, see [Bounding volumes](#bounding-volumes) |
 
 The transform is local: an object's position, rotation and scale are relative to its parent node, and vertices are
@@ -127,9 +142,9 @@ A node groups other objects. It has no geometry of its own.
 
 | Type      | Field          | Meaning                                                                                |
 |-----------|----------------|----------------------------------------------------------------------------------------|
-| `u32`     | sorting mode   | Whether the children are sorted (for transparency) before drawing: `0` on, `1` off, `2` default |
+| `u32`     | sorting mode   | Whether the children are sorted (for transparency) before drawing: `0` on, `1` off, `2` default (engine: `SetSortingOn`/`Off`/`Default`) |
 | `u32`     | sorter         | The address of the sorting object when the file was saved. The game ignores it         |
-| `bool`    | visual object  | Whether the node counts as something visible (inferred from the engine's name for it)   |
+| `bool`    | visual object  | Whether the node counts as something visible (engine: `IsVisualObject`; the effect is inferred) |
 | `link[]`  | children       | Child objects. A `0` is an empty slot                                                  |
 | `link[]`  | effects        | Lights (`NiLight`) that shine on this node's subtree                                   |
 
@@ -198,23 +213,24 @@ From `NiLODNode`:
 |----------------------|-------------------|--------------------------------------------------------------------------|
 | `i32`                | range count       | Number of ranges, one per child                                         |
 | count × (`f32`, `f32`, `vec3`) | ranges  | Near distance, far distance and the point distances are measured from   |
-| `bool`               | position in range | Stored by the engine; its effect isn't confirmed                        |
+| `bool`               | position in range | Engine: `GetPositionInRange`; its effect isn't confirmed                |
 
 The ranges are in the same order as the node's children: child 0 is shown when the camera is between the first
 range's near and far distance, and so on.
 
 ### NiBillboardNode
 
-A node that turns to face the camera, used for sprites such as flares and trees.
+A node that turns to face the camera, so flat shapes below it always face the viewer.
 
 | Type  | Field | Meaning                                                                        |
 |-------|-------|--------------------------------------------------------------------------------|
-| `i32` | mode  | How the node turns (freely, or only around its up axis). Values not yet mapped |
+| `i32` | mode  | How the node turns (engine: `SetMode`). Shipped files use `0`, `1` and `2`; which turn is which isn't mapped yet |
 
 ### NiLight
 
 A light. One class covers every kind of light; the light type field tells them apart. It doesn't hang in the node
-tree as a child: nodes list the lights that shine on them in their effects.
+tree as a child: nodes list the lights that shine on them in their effects. The field names follow the engine's
+getters (`GetLocation`, `GetDimmer`, `GetAttenuationCurve`, ...).
 
 | Type        | Field                | Meaning                                                               |
 |-------------|----------------------|-----------------------------------------------------------------------|
@@ -230,7 +246,7 @@ tree as a child: nodes list the lights that shine on them in their effects.
 | `f32`       | attenuation distance | Distance over which the light fades                                  |
 | `f32`       | attenuation curve    | Shape of the fade                                                     |
 | `bool`      | attenuation          | Whether the light fades with distance at all                         |
-| `i32`       | light type           | Kind of light. Values not yet mapped                                  |
+| `i32`       | light type           | Kind of light. Shipped files use `1` and `2`; not mapped to names yet |
 | `i32` + count × `u32` | illuminated nodes | Link IDs of the nodes it lights. The game reads and ignores them: the nodes' effect lists are what count |
 
 ### Bounding volumes
@@ -240,7 +256,7 @@ Some objects carry a collision shape. It is stored inside the object, right afte
 
 | Type | Shape         | Fields                                                                          |
 |------|---------------|---------------------------------------------------------------------------------|
-| 0    | sphere        | `vec3` center, `f32` radius, `bool` inverted                                    |
+| 0    | sphere        | `vec3` center, `f32` radius, `bool` inverted (engine: `IsInverted`)             |
 | 1    | box           | `vec3` center, 3 × `vec3` axes, `vec3` half-size along each axis, `bool` inverted |
 | 2    | capsule       | `vec3` origin, `vec3` direction, `f32` radius, `bool` inverted                  |
 | 3    | lozenge       | `vec3` origin, two `vec3` edges of a parallelogram, `f32` radius                |
@@ -257,8 +273,8 @@ capsules and a few intersections.
 
 Properties set how objects are drawn. A property applies to the object that lists it and to everything below that
 object in the tree, unless something lower down overrides it. Every property starts with the `NiObject` fields and
-then a `bool` *master* flag, whose effect hasn't been confirmed. The exception is `NiShadeProperty`, which skips the
-master flag.
+then a `bool` *master* flag (engine: `GetMaster`), whose effect hasn't been confirmed. The exception is
+`NiShadeProperty`, whose loader skips the property part and has no master flag.
 
 Most mode fields below are engine enums whose numbers aren't mapped to names yet.
 
@@ -270,7 +286,7 @@ Most mode fields below are engine enums whose numbers aren't mapped to names yet
 | 3 × `f32` | diffuse colour | Main surface colour                       |
 | 3 × `f32` | specular colour| Colour of highlights                      |
 | 3 × `f32` | emittance      | Colour the surface gives off by itself    |
-| `f32`     | shininess      | Size of highlights                        |
+| `f32`     | shininess      | Size of highlights (engine: `GetShineness`) |
 | `f32`     | alpha          | Opacity, `0` transparent to `1` opaque    |
 
 ### NiAlphaProperty
@@ -327,9 +343,9 @@ A texture image.
 | Type          | Field                    | Meaning                                                           |
 |---------------|--------------------------|-------------------------------------------------------------------|
 | `bool`        | external                 | Whether the image is a separate file                              |
-| C string      | file name                | Only when external: the image file, a `.tga` name without a path |
+| C string      | file name                | Only when external: the image file, a `.tga` name without a path. The game looks it up in its texture folders |
 | `link`        | raw data                 | Only when not external: a block with the pixels                   |
-| `u32`         | preferred texture format | Pixel format the engine should convert the image to               |
+| `u32`         | preferred texture format | Pixel format the engine should convert the image to (engine: `GetPreferredTextureFormat`) |
 
 The game loads each file name only once and shares it between all images that name it.
 
@@ -341,9 +357,9 @@ terms it is an *action*: the game starts running it as soon as the file is loade
 | Type   | Field        | Meaning                                                              |
 |--------|--------------|----------------------------------------------------------------------|
 | `u32`  | out of bound | What happens after the last image (engine enum, not mapped yet)     |
-| `f32`  | rate         | Playback speed                                                       |
-| `f32`  | start time   | When the animation starts                                           |
-| `f32`  | cycle time   | Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images |
+| `f32`  | rate         | Playback speed (engine: `SetRate`)                                   |
+| `f32`  | start time   | When the animation starts (engine: `GetStartTime`)                  |
+| `f32`  | cycle time   | Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images (engine: `GetSecsPerFrame`). The name is this toolkit's |
 | `link` | textures     | The `NiTextureProperty` whose index it changes                      |
 
 ## Extra data
@@ -360,9 +376,9 @@ instead.
 
 ## Animation
 
-The animated models (units with moving parts, blinking lights, fading effects) use 3ds Max animation classes that
-NetImmerse shipped for its 3ds Max exporter. This section describes their layout so files can be read; what each
-setting does is left for a later investigation.
+Animated models use the 3ds Max animation classes (`Ni3ds...`) that came with NetImmerse's 3ds Max exporter: node
+animation, colour and transparency animators, skinned meshes and morphing meshes. This section describes their
+layout so files can be read; what each setting does is left for a later investigation.
 
 ### Keys
 
@@ -372,22 +388,25 @@ type of all keys in it. Some lists only store the type when the count is above z
 | Type | Float key                          | Position key                                  | Rotation key              |
 |------|------------------------------------|-----------------------------------------------|---------------------------|
 | 1    | linear: time, value                | linear: time, `vec3` value                    | linear (base fields only) |
-| 2    | Bézier: + in and out tangent       | Bézier: + 4 × `vec3` (tangents and two precomputed values) | Bézier: + quaternion, `f32` |
-| 3    | TCB: + tension, continuity, bias, 2 precomputed `f32` | TCB: + tension, continuity, bias, 4 × `vec3` | TCB: + tension, continuity, bias, 2 quaternions, 2 × `f32` |
+| 2    | Bézier: + in and out tangent       | Bézier: + 4 × `vec3` (tangents and two values the exporter precomputed) | Bézier: + quaternion, `f32` |
+| 3    | TCB: + tension, continuity, bias, 2 values the exporter precomputed | TCB: + tension, continuity, bias, 4 × `vec3` | TCB: + tension, continuity, bias, 2 quaternions, 2 × `f32` |
 | 4    | morph key: nothing is stored       |                                               | Euler: + `u16`, then three float key lists (x, y, z) |
 | 5    | barycentric morph: TCB + `u32` n and 3 × n values |                                  |                           |
 | 6    | cubic morph: TCB + 2 × `f32`       |                                               |                           |
 
 Every rotation key starts with the time, an angle, a `vec3` axis, a quaternion (4 × `f32`), an `i32` number of extra
-spins and a `u32` whose meaning is unknown. A visibility key is a time and a `bool`. Colours are animated with
+spins and a `u32` whose meaning is unknown (engine: `GetAngle`, `GetAxis`, `GetQuaternion`, `GetExtraSpins`). The
+angle and axis are how 3ds Max describes the rotation; the quaternion is the same rotation in NetImmerse's form. A visibility key is a time and a `bool`. Colours are animated with
 position keys, with red, green and blue in place of x, y and z.
 
 ### Animation settings
 
 Every 3ds animation class stores the same playback settings: `u32` animation type, three unknown `u8`, a `bool`
 *scene graph update*, `u32` cycle type (how the animation repeats), then five `f32`: default display time,
-frequency (playback speed, usually `1`), phase, begin key time and end key time. Times appear to be in 3ds Max ticks
-(4800 per second): end key times such as 960, 3200 and 12800 are common.
+frequency (playback speed, usually `1`), phase, begin key time and end key time. The names are the engine's
+(`GetAnimType`, `GetSceneGraphUpdate`, `GetCycleType`, `GetDefaultDisplayTime`, `GetFrequency`, `GetPhase`,
+`GetBeginKeyTime`, `GetEndKeyTime`). Times appear to be 3ds Max ticks (4800 per second): end key times such as 960,
+3200 and 12800 are common.
 
 ### Animated classes
 
@@ -411,8 +430,9 @@ description, a shadow, animations it can play and sounds that go with them.
 
 ### DDUnit and DDEnv
 
-Units (the things the player builds with) are `DDUnit`, environments are `DDEnv`. Both are *actors* and are stored
-the same way: a full `NiNode`, followed by one field.
+Every object except the environments is a `DDUnit`: the units the player builds with as well as characters and
+other objects. Environments are `DDEnv`. Both are *actors* and are stored the same way: a full `NiNode`, followed by
+one field.
 
 | Type   | Field       | Meaning                                                                     |
 |--------|-------------|-----------------------------------------------------------------------------|
@@ -420,8 +440,9 @@ the same way: a full `NiNode`, followed by one field.
 
 The actor is one placed instance; the shared data is what all instances of that kind of object have in common.
 
-The code that makes an object behave lives in a DLL in `Bhvr.pac`. The game loads the DLL named by the shared data's
-behaviour field, or the one named after the object itself when the field is empty. That lets objects share code: all
+The code that makes an object behave lives in a DLL in `Bhvr.pac`. The game (engine: `LoadActorDLL`) loads the DLL
+named by the shared data's behaviour field from its `BehaviorDir` folder, or the one named after the object itself
+when the field is empty. That lets objects share code: all
 54 environments use `tl0019`, the six `T0011`–`T0016` objects use `t0011`, and a few units reuse another unit's
 behaviour (`U0209` runs `u0165`).
 
@@ -430,15 +451,15 @@ behaviour (`U0209` runs `u0165`).
 | Type          | Field             | Meaning                                                                         |
 |---------------|-------------------|---------------------------------------------------------------------------------|
 | (`NiObject`)  | name              | The object's type name, which is its ID (`U0001`, `OG9997`)                      |
-| C string      | description       | A readable description (`Dummy Object`)                                          |
+| C string      | description       | A readable description (`Catapult`, `Guard`) (engine: `GetDescription`)          |
 | C string      | behaviour         | The behaviour DLL with the object's code (see below)                             |
-| `bool`        | make shadow       | Whether the object casts a shadow                                                |
-| `bool`        | prop              | Whether the object is a prop rather than a full game object                      |
-| `f32`         | shadow multiplier | Strength or size of the shadow (the game reads it as a multiplier)              |
+| `bool`        | make shadow       | Whether the object casts a shadow (engine: `GetMakeShadow`)                      |
+| `bool`        | prop              | Whether the object is a prop (engine: `IsProp`). Only `P0121`, a crate stack, sets it; what changes for a prop isn't known |
+| `f32`         | shadow multiplier | Strength or size of the shadow (engine: `GetShadowMult`)                         |
 | `u32`         | (unknown)         |                                                                                  |
 | `i32` + count | skills            | Named animation clips, see below                                                 |
 | `i32` + count | tracks            | Keyframes for the animated nodes: rotation, position and scale key lists (type stored only when they have keys) and visibility keys, as in `Ni3dsAnimationNode` |
-| `u32` + count × `vec3` | floor points | Points the game uses to place the object on the ground (from the engine's name for them) |
+| `u32` + count × `vec3` | floor points | Points the object stands on (engine: `GetFloorPts`; how they're used is inferred) |
 
 A *skill* is a named stretch of the object's animation timeline. When the game plays a skill, it runs the object's
 animations from the start time to the end time, and it can play a sound along with it. Most objects have a `neutral`
@@ -449,12 +470,12 @@ skill; others are generic (`anim1`, `on`, `off`) or specific to a character or m
 |-----------------------|------------------|---------------------------------------------------------------------------|
 | C string              | name             | The skill's name                                                          |
 | `f32`                 | start time       | Where the clip starts on the timeline                                     |
-| `f32`                 | end time         | Where it ends. The clip's length is end − start                           |
+| `f32`                 | end time         | Where it ends. The clip's length is end − start (engine: `DDSkill::GetDuration`) |
 | `bool`                | has sound        | Whether a sound block follows                                             |
 | (sound)               | sound            | Only when present, see below                                              |
-| `i32` + count × `u16` | animation nodes  | Which of the actor's animated nodes the skill moves, by index             |
-| `i32` + count × `u16` | actions          | Which of its actions (such as texture animations) the skill runs          |
-| `i32` + count × `u16` | other animations | Which of its other animated parts (such as morphing meshes) the skill runs |
+| `i32` + count × `u16` | animation nodes  | Which of the actor's animated nodes the skill moves, by index (engine: `GetAnimNodeArray`) |
+| `i32` + count × `u16` | actions          | Which of its actions (such as texture animations) the skill runs (engine: `GetActionArray`) |
+| `i32` + count × `u16` | other animations | Which of its other animated parts (such as morphing meshes) the skill runs (engine: `GetAnimEtcArray`) |
 
 The indices refer to the actor's own lists of animated parts, which the game builds when it loads the object. How it
 orders those lists hasn't been worked out yet, so the indices can't be matched to blocks in the file for now.
@@ -463,16 +484,16 @@ A skill's sound:
 
 | Type     | Field                | Meaning                                                                       |
 |----------|----------------------|-------------------------------------------------------------------------------|
-| C string | file name            | The sound file, looked up in the game's audio folder (inferred)               |
+| C string | file name            | The sound file, looked up in the game's `AudioDir` folder                     |
 | C string | node name            | When set, the sound comes from that part of the object rather than the whole (inferred) |
 | `bool`   | loop                 | Whether the sound repeats (inferred)                                          |
 | `bool`   | source type          | Passed on when the game creates the sound source; its meaning isn't known    |
 | `bool`   | distance flag        | Passed on with the distances below; its meaning isn't known                   |
 | `f32`    | delay                | Seconds into the skill before the sound starts; `0` or less plays it at once  |
-| `f32`    | gain                 | Volume                                                                        |
-| `f32`    | distance model scale | How quickly the sound gets quieter with distance                              |
-| `f32`    | max distance         | Distance beyond which the sound is no longer heard                            |
-| `f32`    | min distance         | Distance within which the sound plays at full volume                          |
+| `f32`    | gain                 | Volume (engine: `Sound_SetGain`)                                              |
+| `f32`    | distance model scale | How quickly the sound gets quieter with distance (engine: `SetDistanceModelScale`) |
+| `f32`    | max distance         | Distance beyond which the sound is no longer heard (engine: `SetMinMaxDistance`) |
+| `f32`    | min distance         | Distance within which the sound plays at full volume (engine: `SetMinMaxDistance`) |
 
 ### DDCorona
 
@@ -483,4 +504,4 @@ followed by one field:
 
 | Type  | Field | Meaning                                                                |
 |-------|-------|------------------------------------------------------------------------|
-| `f32` | size  | Size of the glow. `0` or less means the object's scale is used instead |
+| `f32` | size  | Size of the glow (engine: the size argument of `MakeCorona`). `0` or less means the object's scale is used instead |

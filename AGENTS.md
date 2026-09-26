@@ -115,7 +115,7 @@ Rules for format work:
 | DDS audio  | Verified and documented (`docs/formats/dds-audio.md`)                                        |
 | Locale TXT | Verified and documented (`docs/formats/string-tables.md`)                                    |
 | TGA        | Standard Truevision TGA                                                                      |
-| FIN models | Under investigation. Files start with `Dweezil 23\n`, followed by length-prefixed NetImmerse class names (`NiNode`, `NiTriShape`, ...) and their data. The engine reports "NetImmerse File Format, Version 7.0, With Modifications by Digital Domain". Goal: a C# parser and export to NIF files that NifSkope can open. |
+| FIN models | Reading verified and documented (`docs/formats/fin.md`); every shipped file parses. Inspect with `betateam fin dump`. Export: glTF for Blender (#6), NIF for NifSkope (#5). |
 | DDF, PUZ   | Not yet investigated                                                                         |
 
 ## Git and pull requests
