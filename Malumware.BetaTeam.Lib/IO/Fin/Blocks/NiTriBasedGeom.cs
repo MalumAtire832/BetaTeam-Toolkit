@@ -11,7 +11,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
         // coordinate, not two.
         public IReadOnlyList<Vector3[]>? TextureSets { get; private set; }
 
-        public FinColorA[]? Colors { get; private set; }
+        public FinColor4[]? Colors { get; private set; }
         public FinPlane[]? TrianglePlanes { get; private set; }
 
         internal override void Load(FinBlockReader reader)
@@ -22,7 +22,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
             TextureSets = reader.ReadUInt32() != 0
                 ? reader.ReadArray(TextureSetCount, r => r.ReadArray(VertexCount, v => v.ReadVector3()))
                 : null;
-            Colors = ReadOptionalArray(reader, VertexCount, r => r.ReadColorA());
+            Colors = ReadOptionalArray(reader, VertexCount, r => r.ReadColor4());
             TrianglePlanes = ReadOptionalArray(reader, TriangleCount, r => new FinPlane(r.ReadVector3(), r.ReadSingle()));
         }
     }

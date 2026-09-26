@@ -47,9 +47,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin
             return new FinColor3(ReadSingle(), ReadSingle(), ReadSingle());
         }
 
-        public FinColorA ReadColorA()
+        public FinColor4 ReadColor4()
         {
-            return new FinColorA(ReadSingle(), ReadSingle(), ReadSingle(), ReadSingle());
+            return new FinColor4(ReadSingle(), ReadSingle(), ReadSingle(), ReadSingle());
         }
 
         public FinMatrix3 ReadMatrix3()
