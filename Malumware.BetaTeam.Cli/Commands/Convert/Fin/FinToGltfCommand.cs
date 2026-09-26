@@ -11,7 +11,10 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
 
         protected override int Execute(CommandContext context, FinToGltfCommandSettings settings, CancellationToken cancellationToken)
         {
-            var files = Directory.EnumerateFiles(settings.InputDirectoryPath, settings.Mask, ENUMERATION_OPTIONS).Order().ToList();
+            var files = Directory
+                .EnumerateFiles(settings.InputDirectoryPath, settings.Mask, ENUMERATION_OPTIONS)
+                .Order()
+                .ToList();
             if (files.Count == 0)
             {
                 AnsiConsole.MarkupLine("[yellow]No FIN files found.[/]");

@@ -94,8 +94,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     }
                 }
 
-                var roots = _file.TopLevelObjects.OfType<NiAVObject>().ToList();
-                var free = _file.Objects.OfType<NiAVObject>().Where(e => !children.Contains(e) && !roots.Contains(e));
+                var roots = _file.TopLevelObjects
+                    .OfType<NiAVObject>()
+                    .ToList();
+                var free = _file.Objects
+                    .OfType<NiAVObject>()
+                    .Where(e => !children.Contains(e) && !roots.Contains(e));
                 return roots.Concat(free);
             }
 
@@ -222,14 +226,18 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
                 if (geometry.Colors is { } colors)
                 {
-                    var values = colors.Select(e => new Vector4(e.R, e.G, e.B, e.A)).ToArray();
+                    var values = colors
+                        .Select(e => new Vector4(e.R, e.G, e.B, e.A))
+                        .ToArray();
                     primitive.WithVertexAccessor("COLOR_0", RequireFinite(geometry, "colour", values));
                 }
 
                 // glTF coordinates have two components; the unexplained third one goes into the extras
                 for (var set = 0; set < (geometry.TextureSets?.Count ?? 0); set++)
                 {
-                    var coordinates = geometry.TextureSets![set].Select(e => new Vector2(e.X, e.Y)).ToArray();
+                    var coordinates = geometry.TextureSets![set]
+                        .Select(e => new Vector2(e.X, e.Y))
+                        .ToArray();
                     primitive.WithVertexAccessor($"TEXCOORD_{set}", RequireFinite(geometry, "texture coordinate", coordinates));
                 }
 
@@ -298,7 +306,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 var array = new JsonArray();
                 foreach (var set in sets)
                 {
-                    array.Add(new JsonArray(set.Select(e => (JsonNode?)FinGltfExtrasBuilder.BuildFloat(e.Z)).ToArray()));
+                    var values = set
+                        .Select(e => (JsonNode?)FinGltfExtrasBuilder.BuildFloat(e.Z))
+                        .ToArray();
+                    array.Add(new JsonArray(values));
                 }
                 extras["TextureCoordinateW"] = array;
             }
@@ -307,7 +318,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             // Vertex colours still show, because glTF multiplies them with the base colour.
             private Material GetMaterial()
             {
-                return _material ??= _model.CreateMaterial("Default").WithPBRMetallicRoughness(Vector4.One, null, null, 0, 1);
+                return _material ??= _model
+                    .CreateMaterial("Default")
+                    .WithPBRMetallicRoughness(Vector4.One, null, null, 0, 1);
             }
 
             private static T[] RequireFinite<T>(NiObject block, string what, T[] values) where T : struct

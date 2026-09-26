@@ -73,7 +73,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             foreach (var (name, data) in FinGameDataTests.FinFiles())
             {
                 var file = FinReader.Read(name, data);
-                var shapes = file.Objects.OfType<NiTriBasedGeom>().Count(e => e.Vertices is { Length: > 0 });
+                var shapes = file.Objects
+                    .OfType<NiTriBasedGeom>()
+                    .Count(e => e.Vertices is { Length: > 0 });
                 var model = new FinToGltfConverter(allLevelsOfDetail: true).ToModel(file);
                 if (model.LogicalMeshes.Count != shapes)
                 {
