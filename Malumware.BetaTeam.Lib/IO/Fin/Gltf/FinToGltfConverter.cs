@@ -156,6 +156,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     node.Mesh = GetMesh(geometry);
                     AddTextureW(extras, geometry);
+                    AddNonFiniteTextureCount(extras, geometry);
                 }
 
                 if (block is NiNode parentBlock)
@@ -244,9 +245,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 for (var set = 0; set < (geometry.TextureSets?.Count ?? 0); set++)
                 {
                     var coordinates = geometry.TextureSets![set]
-                        .Select(e => new Vector2(e.X, e.Y))
+                        .Select(e => new Vector2(FiniteOrZero(e.X), FiniteOrZero(e.Y)))
                         .ToArray();
-                    primitive.WithVertexAccessor($"TEXCOORD_{set}", RequireFinite(geometry, "texture coordinate", coordinates));
+                    primitive.WithVertexAccessor($"TEXCOORD_{set}", coordinates);
                 }
 
                 if (geometry is NiTriShape { Triangles.Length: > 0 } shape)
@@ -325,6 +326,27 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 extras["TextureCoordinateW"] = array;
             }
 
+            // Some shipped files have NaN or infinite u or v, probably from a mapping that divided by zero in the
+            // exporter. glTF doesn't allow them, so we deliberately write 0 for each such component and count the
+            // coordinates in the extras. Nearly all are in the second texture set of shapes with one or two triangles,
+            // which Blender's default material doesn't use; once textures are converted, an affected triangle shows a
+            // single texel instead of whatever the game's renderer made of NaN. Only u and v are checked: w goes into
+            // the extras, which can hold any value.
+            private static float FiniteOrZero(float value)
+            {
+                return float.IsFinite(value) ? value : 0;
+            }
+
+            private static void AddNonFiniteTextureCount(JsonObject extras, NiTriBasedGeom geometry)
+            {
+                var count = geometry.TextureSets?
+                    .Sum(set => set.Count(e => !float.IsFinite(e.X) || !float.IsFinite(e.Y))) ?? 0;
+                if (count > 0)
+                {
+                    extras["NonFiniteTextureCoordinates"] = count;
+                }
+            }
+
             // Textures and materials aren't converted yet, so every shape gets the same plain white, non-metallic one.
             // Vertex colours still show, because glTF multiplies them with the base colour.
             private Material GetMaterial()
@@ -341,7 +363,6 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     var finite = value switch
                     {
-                        Vector2 v => float.IsFinite(v.X) && float.IsFinite(v.Y),
                         Vector3 v => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z),
                         Vector4 v => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z) && float.IsFinite(v.W),
                         _ => true,

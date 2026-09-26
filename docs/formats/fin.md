@@ -55,6 +55,11 @@ Blender can import:
   outside the tree, such as `DDActorSharedData` and texture animations, are in the root node's `blocks`, keyed by
   link ID; other extras refer to them as `{"ref": "0x...", "class": ...}`. The third texture coordinate component
   is kept as `TextureCoordinateW` on shapes where it isn't always `0`.
+- glTF doesn't allow texture coordinates that aren't finite numbers, and some shipped files have them (see
+  [NiTriShape](#nitrishape)). We chose to write `0` for each such u or v, and to record on the shape's node how many
+  coordinates were affected, as `NonFiniteTextureCoordinates`. In Blender this makes no visible difference, since
+  textures aren't converted yet and the default material doesn't use the second texture set. Once textures are
+  converted, an affected triangle will show one texel of its texture.
 
 Animation, skinning and morphing aren't converted yet; their data is in the extras.
 
@@ -213,6 +218,11 @@ From `NiTriShape`:
 Texture coordinates have three components, not two as in other NetImmerse versions. The first two are the usual
 u and v, and they go well outside 0..1 where textures repeat. What the third one is for isn't known yet: in the
 shipped files it is mostly `0`, and otherwise a value close to `0`, `0.5` or `1`.
+
+Some shipped files have texture coordinates that are NaN or infinite, in all three components. They sit on vertices
+that triangles use, nearly always in the second texture set of shapes with only one or two triangles. Most are the
+NaN an x86 processor returns for `0 / 0`, so a texture mapping that divided by zero in the exporter probably produced
+them. That is inferred, not verified. How the game draws these triangles hasn't been checked.
 
 The engine reads all texture coordinates into one array. That the first set comes first, then the second, is
 inferred from how other NetImmerse versions store them: the file layout is the same size either way.

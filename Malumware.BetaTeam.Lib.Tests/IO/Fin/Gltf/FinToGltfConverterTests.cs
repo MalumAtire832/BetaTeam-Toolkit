@@ -22,7 +22,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         // A triangle (0, 1, 2) at the given position, with normals, colours and one texture set
         private static FinStreamBuilder Shape(
             FinStreamBuilder builder, uint linkId, string name, float[]? translation = null, float[]? normals = null,
-            ushort lastIndex = 2)
+            float[]? textureCoordinates = null, ushort lastIndex = 2)
         {
             return builder.SizedString("NiTriShape").NiObject(linkId, name)
                 .Byte(0)
@@ -39,7 +39,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                 .Floats(0.5f, 0.5f, 0, 0.75f)                               // bound
                 .UInt16(1)                                                  // triangle count
                 .UInt16(1)                                                  // texture set count
-                .UInt32(PRESENT).Floats(0, 0, 0, 2, 0, 0, 0, -1, 0)         // texture coordinates
+                .UInt32(PRESENT).Floats(textureCoordinates ?? [0, 0, 0, 2, 0, 0, 0, -1, 0])
                 .UInt32(PRESENT).Floats(1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0.5f)     // colours
                 .UInt32(0)                                                  // no triangle planes
                 .UInt16(0).UInt16(1).UInt16(lastIndex);
@@ -139,6 +139,26 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             // Assert
             Assert.Null(primitive.GetVertexAccessor("NORMAL"));
             Assert.NotNull(primitive.GetVertexAccessor("POSITION"));
+        }
+
+        [Fact]
+        public void ToGlb_ReplacesTextureCoordinateWithZero_WhenItIsNotFinite()
+        {
+            // Arrange
+            var builder = new FinStreamBuilder().Header().TopLevel();
+            var textureCoordinates = new[] { float.NaN, 0, 0, 2, float.PositiveInfinity, 0, 0, -1, float.NaN };
+            var bytes = Shape(builder, 0x20, "Box", textureCoordinates: textureCoordinates).EndOfFile().ToArray();
+
+            // Act
+            var model = Convert(bytes);
+
+            // Assert
+            var coordinates = Assert.Single(model.LogicalMeshes[0].Primitives)
+                .GetVertexAccessor("TEXCOORD_0")
+                .AsVector2Array();
+            Assert.Equal([Vector2.Zero, new Vector2(2, 0), new Vector2(0, -1)], coordinates);
+            var box = Assert.Single(SceneRoot(model).VisualChildren);
+            Assert.Equal(2, Extras(box)["NonFiniteTextureCoordinates"]!.GetValue<int>());
         }
 
         [Fact]
