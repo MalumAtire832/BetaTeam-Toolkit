@@ -252,9 +252,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     return;
                 }
                 target.LodCenter = source.Ranges[0].Center;
-                if (source.Ranges.Any(range => range.Center != target.LodCenter))
+                if (source.Ranges.Any(e => e.Center != target.LodCenter))
                 {
-                    var centers = string.Join(", ", source.Ranges.Select(range => Format(range.Center)));
+                    var centers = string.Join(", ", source.Ranges.Select(e => Format(e.Center)));
                     target.AddExtraData(new NifBlocks.NiStringExtraData($"LodCenters: {centers}"));
                     _warnings.Add("LOD ranges with different centers use the first; all are listed in string extra data");
                 }
@@ -298,12 +298,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     // The skills' times are copied as stored, in the timeline's own units
                     var keys = new NifBlocks.NiTextKeyExtraData();
                     var skillKeys = shared.Skills
-                        .SelectMany(skill => new[]
+                        .SelectMany(e => new[]
                         {
-                            new NifBlocks.NifTextKey(skill.StartTime, $"{skill.Name}: start"),
-                            new NifBlocks.NifTextKey(skill.EndTime, $"{skill.Name}: stop"),
+                            new NifBlocks.NifTextKey(e.StartTime, $"{e.Name}: start"),
+                            new NifBlocks.NifTextKey(e.EndTime, $"{e.Name}: stop"),
                         })
-                        .OrderBy(key => key.Time);
+                        .OrderBy(e => e.Time);
                     keys.TextKeys.AddRange(skillKeys);
                     target.AddExtraData(keys);
                 }
@@ -353,10 +353,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     Normals = source.Normals,
                     BoundCenter = source.BoundCenter,
                     BoundRadius = source.BoundRadius,
-                    VertexColors = source.Colors?.Select(c => new NifColor4(c.R, c.G, c.B, c.A)).ToArray(),
+                    VertexColors = source.Colors?.Select(e => new NifColor4(e.R, e.G, e.B, e.A)).ToArray(),
                     // A corona has no triangles of its own: the engine builds them when drawing
                     Triangles = source is FinBlocks.NiTriShape shape
-                        ? shape.Triangles.Select(t => new NifTriangle(t.A, t.B, t.C)).ToArray()
+                        ? shape.Triangles.Select(e => new NifTriangle(e.A, e.B, e.C)).ToArray()
                         : [],
                 };
 
@@ -364,7 +364,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 var textureSets = source.TextureSets ?? [];
                 foreach (var textureSet in textureSets.Take(NifBlocks.NiGeometryData.MAX_UV_SETS))
                 {
-                    data.UvSets.Add(textureSet.Select(uv => new Vector2(uv.X, uv.Y)).ToArray());
+                    data.UvSets.Add(textureSet.Select(e => new Vector2(e.X, e.Y)).ToArray());
                 }
                 if (textureSets.Count > NifBlocks.NiGeometryData.MAX_UV_SETS)
                 {
@@ -507,7 +507,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                 {
                     target.Name = texture.Name ?? "";
                     CheckExtraData(texture);
-                    var images = texture.Images.Select(image => image.Target).ToList();
+                    var images = texture.Images.Select(e => e.Target).ToList();
                     target.Textures[(int)NifBlocks.NifTextureSlot.Base] = new NifBlocks.NifTexDesc
                     {
                         Source = ConvertImage(PickImage(texture, images)),
@@ -519,7 +519,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Nif
                     // The other images are frames of a texture animation, which isn't exported
                     if (images.Count > 1)
                     {
-                        var names = string.Join(", ", images.Select(image => image?.FileName ?? "(none)"));
+                        var names = string.Join(", ", images.Select(e => e?.FileName ?? "(none)"));
                         target.AddExtraData(new NifBlocks.NiStringExtraData($"Images: {names}"));
                     }
                 }

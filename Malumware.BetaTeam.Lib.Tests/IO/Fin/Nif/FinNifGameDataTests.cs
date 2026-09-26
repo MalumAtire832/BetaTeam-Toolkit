@@ -36,15 +36,15 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Nif
                 var conversion = new FinToNifConverter().Convert(file);
                 NifWriter.Write(conversion.File);
                 // Counted per file, without the count of repeats within the file
-                foreach (var warning in conversion.Warnings.Select(w => Regex.Replace(w, @" \(\d+x\)$", "")))
+                foreach (var warning in conversion.Warnings.Select(e => Regex.Replace(e, @" \(\d+x\)$", "")))
                 {
                     warnings[warning] = warnings.GetValueOrDefault(warning) + 1;
                 }
 
                 var finShapes = file.Objects.OfType<FinBlocks.NiTriBasedGeom>().ToList();
                 var nifShapes = conversion.File.CollectBlocks().OfType<NifBlocks.NiTriShape>().ToList();
-                var finTriangles = finShapes.OfType<FinBlocks.NiTriShape>().Sum(shape => shape.Triangles.Length);
-                var nifTriangles = nifShapes.Sum(shape => ((NifBlocks.NiTriShapeData)shape.Data!).Triangles.Length);
+                var finTriangles = finShapes.OfType<FinBlocks.NiTriShape>().Sum(e => e.Triangles.Length);
+                var nifTriangles = nifShapes.Sum(e => ((NifBlocks.NiTriShapeData)e.Data!).Triangles.Length);
                 if (finShapes.Count != nifShapes.Count || finTriangles != nifTriangles)
                 {
                     failures.Add(
@@ -54,7 +54,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Nif
                 }
             }
 
-            foreach (var (warning, files) in warnings.OrderByDescending(pair => pair.Value))
+            foreach (var (warning, files) in warnings.OrderByDescending(e => e.Value))
             {
                 _output.WriteLine($"{files} files: {warning}");
             }
