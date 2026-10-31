@@ -70,6 +70,105 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             Assert.Empty(failures);
         }
 
+        // As exported for the port (every node kept): each animation is a skill, its values are numbers, and every
+        // pointer and flip-book refers to something in the file
+        [GameDataFact]
+        public void Animations_FitTheirModel_ForEveryShippedFile()
+        {
+            // Arrange
+            var failures = new List<string>();
+            var skills = 0;
+            var animations = 0;
+            var flipBooks = 0;
+
+            // Act
+            foreach (var (name, data) in FinGameDataTests.FinFiles())
+            {
+                var file = FinReader.Read(name, data);
+                var glb = new FinToGltfConverter(true, true).ToGlb(file);
+                var model = GlbTestReader.Read(glb);
+                var json = GlbTestReader.Json(glb);
+                var skillNames = file.Objects.OfType<DDActorSharedData>().SelectMany(e => e.Skills).Select(e => e.Name).ToList();
+                skills += skillNames.Count;
+                animations += model.LogicalAnimations.Count;
+                foreach (var animation in model.LogicalAnimations)
+                {
+                    if (!skillNames.Contains(animation.Name))
+                    {
+                        failures.Add($"{name}: animation {animation.Name} isn't a skill");
+                    }
+                    foreach (var channel in animation.Channels)
+                    {
+                        if (channel.TargetPointerPath is { } pointer && !PointsIntoModel(pointer, model))
+                        {
+                            failures.Add($"{name}: {animation.Name} points at {pointer}");
+                        }
+                    }
+                }
+                foreach (var animation in json["animations"]?.AsArray() ?? [])
+                {
+                    foreach (var sampler in animation!["samplers"]!.AsArray())
+                    {
+                        var output = model.LogicalAccessors[sampler!["output"]!.GetValue<int>()];
+                        if (output.Encoding == EncodingType.FLOAT && Floats(output).Any(value => !float.IsFinite(value)))
+                        {
+                            failures.Add($"{name}: {animation["name"]} has a value that isn't a finite number");
+                        }
+                    }
+                }
+                var root = json["nodes"]!.AsArray().First(node => node!["extras"]?["file"] is not null)!;
+                foreach (var flipBook in root["extras"]!["flipbooks"]?.AsArray() ?? [])
+                {
+                    flipBooks++;
+                    var images = flipBook!["images"]!.AsArray().Select(e => e!.GetValue<int>()).ToList();
+                    var frames = flipBook["frames"]!.AsArray().Select(e => e!.GetValue<int>()).ToList();
+                    if (images.Any(i => i < 0 || i >= model.LogicalImages.Count) || frames.Any(f => f < 0 || f >= images.Count)
+                        || flipBook["material"]!.GetValue<int>() >= model.LogicalMaterials.Count)
+                    {
+                        failures.Add($"{name}: flip-book of {flipBook["skill"]} refers past the model");
+                    }
+                }
+            }
+
+            _output.WriteLine($"{skills} skills, {animations} animations, {flipBooks} flip-books");
+            foreach (var failure in failures)
+            {
+                _output.WriteLine(failure);
+            }
+
+            // Assert
+            Assert.NotEqual(0, animations);
+            Assert.NotEqual(0, flipBooks);
+            Assert.Empty(failures);
+        }
+
+        private static IEnumerable<float> Floats(Accessor accessor)
+        {
+            return accessor.Dimensions switch
+            {
+                DimensionType.VEC3 => accessor.AsVector3Array().SelectMany(v => new[] { v.X, v.Y, v.Z }),
+                DimensionType.VEC4 => accessor.AsVector4Array().SelectMany(v => new[] { v.X, v.Y, v.Z, v.W }),
+                _ => accessor.AsScalarArray(),
+            };
+        }
+
+        // /nodes/N/... or /materials/N/... with N inside the model
+        private static bool PointsIntoModel(string pointer, ModelRoot model)
+        {
+            var parts = pointer.Split('/');
+            if (parts.Length < 3 || !int.TryParse(parts[2], out var index))
+            {
+                return false;
+            }
+
+            return parts[1] switch
+            {
+                "nodes" => index < model.LogicalNodes.Count,
+                "materials" => index < model.LogicalMaterials.Count,
+                _ => false,
+            };
+        }
+
         // With every level of detail and every hidden node kept, no geometry may be lost: each shape or corona with
         // vertices gets its own mesh
         [GameDataFact]

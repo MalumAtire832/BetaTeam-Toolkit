@@ -95,7 +95,7 @@ Reads the game's archives directly and writes the asset tree of the Godot port, 
 
 | Folder      | Contents                                                                                      |
 |-------------|-----------------------------------------------------------------------------------------------|
-| `models/`   | Every `.FIN` as `.glb`, with every level of detail and hidden object, materials included      |
+| `models/`   | Every `.FIN` as `.glb`, with every level of detail and hidden object, materials and skill animations included |
 | `textures/` | `Map.pac` and `LMap.pac` as `.png`; the models refer to them as `../textures/<name>.png`       |
 | `levels/`   | Every `.PUZ`, copied                                                                          |
 | `data/`     | `UILAYOUT.TXT`, `CATEGORYUNITS.TXT` and `CATEGORYIMAGES.TXT`, copied                          |
@@ -147,7 +147,8 @@ betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 
 Converts `.FIN` models to binary glTF (`.glb`) for importing into Blender. The node hierarchy and each object's
 transform are kept, skinned meshes are bound to their bones as an armature, each shape gets a material from its
-render properties, and the fields that aren't geometry show up as custom properties. Textures aren't embedded: the
+render properties, every skill becomes an animation (morphs, visibility and colours included), and the fields that
+aren't geometry show up as custom properties. Textures aren't embedded: the
 glb refers to `../textures/<name>.png`, so convert the models into a `models` folder and the textures, with
 `convert tga png`, into a `textures` folder beside it.
 See [docs/formats/fin.md](docs/formats/fin.md#converting-to-gltf).

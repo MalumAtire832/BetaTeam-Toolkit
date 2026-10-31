@@ -72,7 +72,42 @@ Blender can import:
   another frame (see [Skinned meshes](#skinned-meshes)). Its vertices are placed by their bones at rest, and the
   bones become the joints of a glTF skin. Blender imports them as an armature, and posing a bone moves the mesh.
 
-Animation and morphing aren't converted yet; their data is in the extras.
+- A morphing shape (`Ni3dsMorphShape`) is written with its first target as the mesh and every other target as a glTF
+  morph target, the difference from the first, which is how the game blends them (see
+  [Morphing shapes](#morphing-shapes)).
+- Each skill becomes a glTF animation; see [Animations](#animations).
+
+#### Animations
+
+Every skill (see [DDActorSharedData](#ddactorshareddata)) becomes one glTF animation with the skill's name, cut from
+the object's single timeline between the skill's start and end. Times in the glb are seconds from the skill's start.
+
+- **What a skill moves** is what the game moves when it plays it (see [Playing a skill](#playing-a-skill)): the
+  animated nodes the skill lists, every node with a key inside the skill or a pose at the skill's start or end that
+  differs from its pose at time 0, the skill's morphing shapes and flip-books, and every colour and transparency
+  animator.
+- **Values** are worked out the way the game interpolates its keys (see [Keys](#keys)), every 1/60 s plus at every key
+  inside the skill, and written as linear glTF keys. A player that interpolates linearly between them stays close to
+  the game, and matches it at each sample.
+- **Transforms:** a node with position keys gets a translation, one with rotation keys a rotation, one with scale keys a
+  scale. A rotation always comes with a uniform scale, because a rotation key replaces the whole rest rotation,
+  including a mirrored one, which glTF writes as a negative scale.
+- **Visibility** uses `KHR_node_visibility`, animated through `KHR_animation_pointer`, with a step at the skill's
+  start and at each visibility key. The node's own `KHR_node_visibility` says whether the game loads it shown.
+- **Colours:** a diffuse colour or transparency animator drives the material's base colour, an emissive animator its
+  emissive colour, both through `KHR_animation_pointer` and with the same conversion as the material's own colours.
+  An unlit material only takes the transparency. The game drives every colour animator of an object whatever skill it
+  plays, so every skill's animation carries them. Ambient and specular colour animators aren't written: glTF has no
+  place for those colours.
+- **Morphing:** the weights of the shape's morph targets.
+- **Flip-books** have no glTF animation target. The root node's extras list them under `flipbooks`, one entry per
+  skill and material: `{"skill", "material", "images", "times", "frames"}`, where `images` are glTF image indices,
+  and from `times[i]` (seconds from the skill's start) on the material shows `images[frames[i]]`. A skill that only
+  flips textures has no channel, so no glTF animation is written for it; neither is one for a skill with nothing to
+  animate.
+- Flip-books that no skill runs (those without `TexturePropExtraData`) run on their own in the game and aren't
+  converted. A node can only be animated when its rest transform is a rotation and scale; one that isn't stops the
+  conversion with an error. `--include-hidden` is needed for the hidden nodes some skills show.
 
 #### Materials
 
@@ -456,16 +491,22 @@ The game loads each file name only once and shares it between all images that na
 
 ### NiFlipTextures
 
-An animation that steps through the images of a `NiTextureProperty`. In engine
-terms it is an *action*: the game starts running it as soon as the file is loaded, so no other block links to it.
+An animation that steps through the images of a `NiTextureProperty`. In engine terms it is an *action*, so no other
+block links to it. A texture property that has a `TexturePropExtraData` (see [Extra data](#extra-data)) gets its
+flip-book run by the skills that list the extra data's index among their actions (see
+[Playing a skill](#playing-a-skill)); one without runs on its own from the moment the file is loaded (inferred).
 
 | Type   | Field        | Meaning                                                              |
 |--------|--------------|----------------------------------------------------------------------|
-| `u32`  | out of bound | What happens after the last image (engine enum, not mapped yet)     |
-| `f32`  | rate         | Playback speed (engine: `SetRate`)                                   |
-| `f32`  | start time   | When the animation starts (engine: `GetStartTime`)                  |
-| `f32`  | cycle time   | Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images (engine: `GetSecsPerFrame`). The name is this toolkit's |
+| `u32`  | out of bound | What happens after the last image: `0` starts again, `1` runs back and forth, `2` stays on the last image |
+| `f32`  | rate         | Playback speed (engine: `SetRate`); the game uses it only to set up the cycle time |
+| `f32`  | start time   | When the animation starts, in ticks (engine: `GetStartTime`)        |
+| `f32`  | cycle time   | Ticks for one pass through the images. Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images (engine: `GetSecsPerFrame`). The name is this toolkit's |
 | `link` | textures     | The `NiTextureProperty` whose index it changes                      |
+
+At a time *t* in ticks the game shows image ⌊images × *p* ÷ cycle time⌋, never past the last one, where *p* is
+how far *t* is past the start time: wrapped into one cycle when the animation starts again (before the start too),
+counted back in every second cycle when it runs back and forth, or held at the first and last image when it stays.
 
 ## Extra data
 
@@ -483,7 +524,7 @@ instead.
 
 Animated models use the 3ds Max animation classes (`Ni3ds...`) that came with NetImmerse's 3ds Max exporter: node
 animation, colour and transparency animators, skinned meshes and morphing meshes. This section describes their
-layout so files can be read; what each setting does is left for a later investigation.
+layout and how the game plays them.
 
 ### Keys
 
@@ -501,8 +542,32 @@ type of all keys in it. Some lists only store the type when the count is above z
 
 Every rotation key starts with the time, an angle, a `vec3` axis, a quaternion (4 × `f32`), an `i32` number of extra
 spins and a `u32` whose meaning is unknown (engine: `GetAngle`, `GetAxis`, `GetQuaternion`, `GetExtraSpins`). The
-angle and axis are how 3ds Max describes the rotation; the quaternion is the same rotation in NetImmerse's form. A visibility key is a time and a `bool`. Colours are animated with
-position keys, with red, green and blue in place of x, y and z.
+angle and axis are how 3ds Max describes the rotation; the quaternion is the same rotation in NetImmerse's form,
+stored w first. A visibility key is a time and a `bool`. Colours are animated with position keys, with red, green and
+blue in place of x, y and z.
+
+How the game works out a value at a time *t*:
+
+- At or before the first key it takes the first key's value, at or after the last key the last one's, and at a key's
+  own time that key's. Otherwise it interpolates from the key before to the key after, with *s* going from 0 to 1
+  between their times.
+- Linear keys interpolate linearly; rotations use spherical interpolation (slerp) of the quaternions. The game's slerp
+  doesn't flip a quaternion to take the shorter way round.
+- Bézier and TCB position keys store the segment's cubic: the value is value + *s*(c₁ + *s*(c₂ + *s*·c₃)), with c₁
+  the out tangent (Bézier) or the second precomputed vector (TCB) and c₂, c₃ the last two vectors.
+- Bézier and TCB float keys are Hermite curves: from the key's value with its out tangent (Bézier) or second
+  precomputed value (TCB) to the next key's value with its in tangent (Bézier) or first precomputed value (TCB).
+- Bézier and TCB rotation keys use *squad*: slerp(2*s*(1−*s*), slerp(*s*, q₀, q₁), slerp(*s*, a, b)), where a is the
+  key's control quaternion (Bézier: its one extra quaternion; TCB: the first) and b the next key's (Bézier: its one;
+  TCB: the second).
+- The rotation key's last `u32` picks the interpolation: `0` is the one above. The game also has modes that
+  interpolate the angle and axis, with or without extra spins, but no shipped key uses them.
+- An Euler key holds three float key lists, angles in radians about x, y and z, each evaluated as above (an empty one
+  is 0). Its `u16` picks the order the three turns are applied in; `0`, the only one shipped, turns about x first,
+  then y, then z. Only the first Euler key of a list counts.
+- Visibility holds each key's value until the next key.
+- A barycentric morph key holds, per morph target, a weight, an in tangent and an out tangent (the 3 × n values, all
+  floats); each target's weight is a Hermite curve between keys.
 
 ### Animation settings
 
@@ -510,8 +575,12 @@ Every 3ds animation class stores the same playback settings: `u32` animation typ
 *scene graph update*, `u32` cycle type (how the animation repeats), then five `f32`: default display time,
 frequency (playback speed, usually `1`), phase, begin key time and end key time. The names are the engine's
 (`GetAnimType`, `GetSceneGraphUpdate`, `GetCycleType`, `GetDefaultDisplayTime`, `GetFrequency`, `GetPhase`,
-`GetBeginKeyTime`, `GetEndKeyTime`). Times appear to be 3ds Max ticks (4800 per second): end key times such as 960,
-3200 and 12800 are common.
+`GetBeginKeyTime`, `GetEndKeyTime`). Times are 3ds Max ticks, 4800 per second: the game turns a skill's seconds into
+ticks by multiplying by 4800 and rounding.
+
+Before evaluating keys the game turns a time *t* into *t* × frequency + phase, then applies the cycle type: `0`
+wraps it into the range from begin to end key time, `1` runs back and forth through that range, and any other value
+leaves it. The result is then kept within the range. A range of zero length always gives the begin key time.
 
 ### Animated classes
 
@@ -519,8 +588,8 @@ frequency (playback speed, usually `1`), phase, begin key time and end key time.
 |----------------------|----------------------|---------------------------------------------------------------------------------|
 | `Ni3dsAnimationNode` | `NiNode`             | Settings, then rotation, position and scale (float) key lists, each storing its type only when it has keys, then `i32` count and visibility keys |
 | `Ni3dsBone`          | `Ni3dsAnimationNode` | Nothing: a bone is an animated node that a skin refers to                      |
-| `Ni3dsColorAnimator` | `NiObject`           | Settings, `link` target, unknown `u32`, `i32` count, key type (always), colour keys |
-| `Ni3dsAlphaAnimator` | `NiObject`           | Settings, `link` target, `i32` count, key type (always), float keys           |
+| `Ni3dsColorAnimator` | `NiObject`           | Settings, `link` target, `u32` colour (`0` ambient, `1` diffuse, `2` specular, `3` emissive), `i32` count, key type (always), colour keys. Each channel is kept within `0`–`1` |
+| `Ni3dsAlphaAnimator` | `NiObject`           | Settings, `link` target, `i32` count, key type (always), float keys for the material's alpha (not limited) |
 | `Ni3dsSkin`          | `NiTriShape`         | Unknown `u8`, `bool` has skin data; if set, per vertex a `u16` count of influences, each a `f32` weight, a `vec3` offset relative to the bone, and a `link` to the `Ni3dsBone` |
 | `Ni3dsMorphShape`    | `NiTriShape`         | Settings, 2 unknown `u8`, `i32` target count, `i32` key count, a bounding sphere (`vec3`, `f32`), key type and float keys, then per target one `vec3` per vertex |
 
@@ -542,6 +611,12 @@ levels away.
 
 In every shipped skin, each vertex follows exactly one bone. With one bone the game ignores the weight and moves the
 vertex with the bone in full, so body parts move rigidly, like the parts of a minifigure.
+
+### Morphing shapes
+
+A `Ni3dsMorphShape` with barycentric keys draws a blend of its targets: the first target, plus each other target's
+difference from the first times that target's weight. The stored vertices aren't drawn. That the blend is exactly this
+sum is inferred from how the game prepares the targets; the function that adds them up hasn't been read.
 
 ### Distant characters
 
@@ -608,8 +683,14 @@ skill; others are generic (`anim1`, `on`, `off`) or specific to a character or m
 | `i32` + count × `u16` | actions          | Which of its actions (such as texture animations) the skill runs (engine: `GetActionArray`) |
 | `i32` + count × `u16` | other animations | Which of its other animated parts (such as morphing meshes) the skill runs (engine: `GetAnimEtcArray`) |
 
-The indices refer to the actor's own lists of animated parts, which the game builds when it loads the object. How it
-orders those lists hasn't been worked out yet, so the indices can't be matched to blocks in the file for now.
+The indices refer to the actor's own lists of animated parts, which the game builds when it loads the object:
+
+- **Animation nodes:** walking the actor's tree depth first, each `Ni3dsAnimationNode` (bones included) in turn gets
+  the next of the shared data's tracks, and its own keys are replaced by them; a node listed in two places is reached
+  twice and keeps the last track. The indices count the nodes in that order.
+- **Actions:** each texture property with at least two images and a `TexturePropExtraData` puts its flip-book at the
+  extra data's index.
+- **Other animations:** morphing shapes; that they're counted in tree order is inferred.
 
 A skill's sound:
 
@@ -625,6 +706,16 @@ A skill's sound:
 | `f32`    | distance model scale | How quickly the sound gets quieter with distance (engine: `SetDistanceModelScale`) |
 | `f32`    | max distance         | Distance beyond which the sound is no longer heard (engine: `SetMinMaxDistance`) |
 | `f32`    | min distance         | Distance within which the sound plays at full volume (engine: `SetMinMaxDistance`) |
+
+#### Playing a skill
+
+When it loads an object the game adds to every skill's list of animation nodes each node whose track has a key
+between the skill's start and end, or whose pose at the skill's start or end differs from its pose at time 0. It also
+drops the keys between skills from each track, keeping the first and last key of every gap, which doesn't change any
+value inside a skill.
+
+While a skill plays, the game evaluates its animation nodes, its actions and its other animations at the skill's time
+in ticks, and every colour and transparency animator of the object as well, whichever skill it is.
 
 ### DDCorona
 

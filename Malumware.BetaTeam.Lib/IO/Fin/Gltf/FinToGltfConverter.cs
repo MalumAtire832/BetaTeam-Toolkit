@@ -20,6 +20,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         private const float MIN_NORMAL_LENGTH = 1e-6f;
         // Four unsigned 16-bit joint indices per vertex
         private const int JOINT_SIZE = 8;
+        // Three floats per morph target position
+        private const int VECTOR3_SIZE = 12;
         public const string DEFAULT_TEXTURE_URI_PREFIX = "../textures/";
         private const string GLB_NAME = "model";
 
@@ -458,8 +460,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                         .Select((vertex, index) => vertex - targets[0][index])
                         .ToArray();
                     var accessor = _model.CreateAccessor($"{mesh.Name} target {i}");
-                    accessor.SetData(_model.UseBufferView(new byte[deltas.Length * 12]), 0, deltas.Length,
-                        DimensionType.VEC3, EncodingType.FLOAT, false);
+                    var size = deltas.Length * VECTOR3_SIZE;
+                    var view = _model.UseBufferView(new byte[size], 0, size, VECTOR3_SIZE, BufferMode.ARRAY_BUFFER);
+                    accessor.SetVertexData(view, 0, deltas.Length, new AttributeFormat(DimensionType.VEC3, EncodingType.FLOAT));
                     var values = accessor.AsVector3Array();
                     var finite = RequireFinite(morph, "morph target", deltas);
                     for (var index = 0; index < finite.Length; index++)
