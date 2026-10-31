@@ -60,8 +60,8 @@ See [docs/formats/tga.md](docs/formats/tga.md).
 `.FIN` files hold every 3D object in the game: environments, units, level objects and characters. Each is a
 NetImmerse scene graph in the early, pre-NIF stream layout, extended with Digital Domain classes that carry an
 object's description, behaviour DLL, shadow settings, named animation clips with their sounds, and floor points.
-The library reads every shipped file and converts it to glTF for Blender (`convert fin gltf`); NIF export is not
-implemented yet. See [docs/formats/fin.md](docs/formats/fin.md).
+The library reads every shipped file and converts it to glTF for Blender (`convert fin gltf`), with materials and
+textures; NIF export is not implemented yet. See [docs/formats/fin.md](docs/formats/fin.md).
 
 
 ## CLI
@@ -114,12 +114,14 @@ betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 ### `convert fin gltf` — Convert FIN models to glTF
 
 Converts `.FIN` models to binary glTF (`.glb`) for importing into Blender. The node hierarchy and each object's
-transform are kept, skinned meshes are bound to their bones as an armature, and the fields that aren't geometry show
-up as custom properties.
+transform are kept, skinned meshes are bound to their bones as an armature, each shape gets a material from its
+render properties, and the fields that aren't geometry show up as custom properties. Textures aren't embedded: the
+glb refers to `../textures/<name>.png`, so convert the models into a `models` folder and the textures, with
+`convert tga png`, into a `textures` folder beside it.
 See [docs/formats/fin.md](docs/formats/fin.md#converting-to-gltf).
 
 ```
-betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--include-all-lods] [--include-hidden]
+betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--include-all-lods] [--include-hidden] [--texture-uri-prefix <prefix>]
 ```
 
 | Argument / Option    | Description                                                                                               | Default |
@@ -129,12 +131,18 @@ betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>
 | `-m`, `--mask`       | File glob pattern                                                                                         | `*.FIN` |
 | `--include-all-lods` | Keep every level of detail instead of only the most detailed, including characters' flat `LOD_` stand-ins | off     |
 | `--include-hidden`   | Keep the objects the game loads hidden, such as effects, glows and lights it switches on when needed      | off     |
+| `--texture-uri-prefix` | Put in front of each texture's PNG name in the glb, relative to the glb                                 | `../textures/` |
 
 Examples:
 
 ```bash
 betateam convert fin gltf /game/extracted/Fin /game/gltf
 betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --include-all-lods --include-hidden
+
+# Models with their textures, for Blender
+betateam convert fin gltf /game/extracted/Fin /game/out/models
+betateam convert tga png /game/extracted/Map /game/out/textures
+betateam convert tga png /game/extracted/LMap /game/out/textures
 ```
 
 ### `convert tga png` — Convert TGA textures to PNG
