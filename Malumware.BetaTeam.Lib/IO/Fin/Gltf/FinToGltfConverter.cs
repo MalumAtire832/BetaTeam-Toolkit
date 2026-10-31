@@ -20,6 +20,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         private const float MIN_NORMAL_LENGTH = 1e-6f;
         // Four unsigned 16-bit joint indices per vertex
         private const int JOINT_SIZE = 8;
+        public const string DEFAULT_TEXTURE_URI_PREFIX = "../textures/";
+        private const string GLB_NAME = "model";
 
         // By default only the most detailed level of each NiLODNode is written, and none of the flat "LOD_" stand-ins
         // that characters show from afar, so the levels don't overlap
@@ -27,18 +29,34 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         // By default nodes the game loads hidden are left out, with everything below them: effects, glows and lights
         // that the game's code shows when they're needed
         public bool IncludeHidden { get; }
+        // Put in front of each texture's PNG file name; relative to the glb, so models share one texture folder
+        public string TextureUriPrefix { get; }
 
-        public FinToGltfConverter(bool includeAllLevelsOfDetail = false, bool includeHidden = false)
+        public FinToGltfConverter(bool includeAllLevelsOfDetail = false, bool includeHidden = false,
+            string textureUriPrefix = DEFAULT_TEXTURE_URI_PREFIX)
         {
             IncludeAllLevelsOfDetail = includeAllLevelsOfDetail;
             IncludeHidden = includeHidden;
+            TextureUriPrefix = textureUriPrefix;
         }
 
+        // Textures are written separately (see TgaToPngConverter), so the glb only refers to them: images are
+        // written as satellite files, which SharpGLTF hands to the callback, and only the glb is kept
         public byte[] ToGlb(FinFile file)
         {
-            return ToModel(file)
-                .WriteGLB()
-                .ToArray();
+            byte[]? glb = null;
+            var context = WriteContext
+                .Create((name, data) =>
+                {
+                    if (name.EndsWith(".glb", StringComparison.Ordinal))
+                    {
+                        glb = data.ToArray();
+                    }
+                }, null)
+                .WithSettingsFrom(new WriteSettings { ImageWriting = ResourceWriteMode.SatelliteFile });
+            context.WriteBinarySchema2(GLB_NAME, ToModel(file));
+
+            return glb ?? throw new InvalidOperationException("SharpGLTF wrote no glb");
         }
 
         public void Convert(FinFile file, string outputPath)
@@ -48,7 +66,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
         internal ModelRoot ToModel(FinFile file)
         {
-            return new Export(file, IncludeAllLevelsOfDetail, IncludeHidden).Run();
+            return new Export(file, IncludeAllLevelsOfDetail, IncludeHidden, TextureUriPrefix).Run();
         }
 
         internal static string Describe(NiObject block)
@@ -64,7 +82,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             private readonly bool _includeHidden;
             private readonly ModelRoot _model = ModelRoot.CreateModel();
             private readonly FinGltfExtrasBuilder _extras = new();
-            private readonly Dictionary<NiTriBasedGeom, Mesh?> _meshes = new(ReferenceEqualityComparer.Instance);
+            private readonly FinGltfMaterials _materials;
+            // A shape reached through parents with different properties needs a mesh per material
+            private readonly Dictionary<(NiTriBasedGeom, Material), Mesh?> _meshes = new();
             private readonly HashSet<NiObject> _ancestors = new(ReferenceEqualityComparer.Instance);
             private readonly Dictionary<NiAVObject, NiNode> _parents = new(ReferenceEqualityComparer.Instance);
             // A block listed as a child in two places gets two nodes; bones are joined to the first
@@ -72,19 +92,20 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             private readonly Dictionary<Ni3dsSkin, FinGltfSkin> _skins = new(ReferenceEqualityComparer.Instance);
             private readonly List<(Node Node, FinGltfSkin Skin)> _skinnedNodes = [];
             private readonly HashSet<NiAVObject> _standIns = new(ReferenceEqualityComparer.Instance);
-            private Material? _material;
             private int _nodeCount;
 
-            public Export(FinFile file, bool includeAllLevelsOfDetail, bool includeHidden)
+            public Export(FinFile file, bool includeAllLevelsOfDetail, bool includeHidden, string textureUriPrefix)
             {
                 _file = file;
                 _includeAllLevelsOfDetail = includeAllLevelsOfDetail;
                 _includeHidden = includeHidden;
+                _materials = new FinGltfMaterials(_model, _extras, textureUriPrefix);
             }
 
             public ModelRoot Run()
             {
                 var scene = _model.UseScene(_file.Name);
+                _model.DefaultScene = scene;
                 var root = scene.CreateNode(_file.Name);
                 root.LocalTransform = new AffineTransform(null, FinGltfTransform.ZUpToYUp, null);
                 root.Extras = BuildRootExtras();
@@ -96,7 +117,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
                 foreach (var block in SceneRoots().Where(IsExported))
                 {
-                    AddNode(root, block, 0);
+                    AddNode(root, block, [], 0);
                 }
                 BindSkins();
 
@@ -186,8 +207,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 };
             }
 
-            // lodLevel matches a child of a NiLODNode to its entry in the node's Ranges
-            private void AddNode(Node parent, NiAVObject block, int depth, int? lodLevel = null)
+            // inherited holds the properties of the block's ancestors; lodLevel matches a child of a NiLODNode to its
+            // entry in the node's Ranges
+            private void AddNode(Node parent, NiAVObject block, IReadOnlyList<NiProperty> inherited, int depth, int? lodLevel = null)
             {
                 if (depth >= MAX_DEPTH)
                 {
@@ -211,9 +233,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     extras["lodLevel"] = lodLevel;
                 }
 
+                var properties = FinGltfMaterials.Inherit(inherited, block);
                 if (block is NiTriBasedGeom geometry)
                 {
-                    node.Mesh = GetMesh(geometry);
+                    node.Mesh = GetMesh(geometry, _materials.Get(properties, geometry.Normals is null));
                     if (node.Mesh is not null && GetSkin(geometry) is { } skin)
                     {
                         _skinnedNodes.Add((node, skin));
@@ -227,7 +250,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     _ancestors.Add(block);
                     foreach (var (index, child) in ExportedChildren(parentBlock))
                     {
-                        AddNode(node, child, depth + 1, parentBlock is NiLODNode ? index : null);
+                        AddNode(node, child, properties, depth + 1, parentBlock is NiLODNode ? index : null);
                     }
                     _ancestors.Remove(block);
                 }
@@ -296,12 +319,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 return best;
             }
 
-            private Mesh? GetMesh(NiTriBasedGeom geometry)
+            private Mesh? GetMesh(NiTriBasedGeom geometry, Material material)
             {
-                if (!_meshes.TryGetValue(geometry, out var mesh))
+                if (!_meshes.TryGetValue((geometry, material), out var mesh))
                 {
-                    mesh = CreateMesh(geometry);
-                    _meshes[geometry] = mesh;
+                    mesh = CreateMesh(geometry, material);
+                    _meshes[(geometry, material)] = mesh;
                 }
 
                 return mesh;
@@ -322,7 +345,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 return skin;
             }
 
-            private Mesh? CreateMesh(NiTriBasedGeom geometry)
+            private Mesh? CreateMesh(NiTriBasedGeom geometry, Material material)
             {
                 if (geometry.Vertices is not { Length: > 0 })
                 {
@@ -368,7 +391,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     primitive
                         .WithIndicesAccessor(PrimitiveType.TRIANGLES, TriangleIndices(shape))
-                        .WithMaterial(GetMaterial());
+                        .WithMaterial(material);
                 }
                 else
                 {
@@ -475,15 +498,6 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     extras["NonFiniteTextureCoordinates"] = count;
                 }
-            }
-
-            // Textures and materials aren't converted yet, so every shape gets the same plain white, non-metallic one.
-            // Vertex colours still show, because glTF multiplies them with the base colour.
-            private Material GetMaterial()
-            {
-                return _material ??= _model
-                    .CreateMaterial("Default")
-                    .WithPBRMetallicRoughness(Vector4.One, null, null, 0, 1);
             }
 
             private static T[] RequireFinite<T>(NiObject block, string what, T[] values)

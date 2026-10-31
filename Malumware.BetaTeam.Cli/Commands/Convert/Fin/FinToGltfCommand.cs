@@ -32,7 +32,7 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
             }
 
             var reader = new FinReader();
-            var converter = new FinToGltfConverter(settings.IncludeAllLevelsOfDetail, settings.IncludeHidden);
+            var converter = new FinToGltfConverter(settings.IncludeAllLevelsOfDetail, settings.IncludeHidden, settings.TextureUriPrefix);
             var failed = 0;
 
             var table = new Table()

@@ -1,5 +1,7 @@
 using Malumware.BetaTeam.Cli.Commands.Convert.Dds;
 using Malumware.BetaTeam.Cli.Commands.Convert.Fin;
+using Malumware.BetaTeam.Cli.Commands.Convert.Tga;
+using Malumware.BetaTeam.Cli.Commands.Export;
 using Malumware.BetaTeam.Cli.Commands.Fin;
 using Malumware.BetaTeam.Cli.Commands.Unpack;
 using Spectre.Console.Cli;
@@ -19,6 +21,16 @@ namespace Malumware.BetaTeam.Cli
                     .WithDescription("Extract all archives in a directory to an output directory. Each archive is unpacked into its own sub-folder named after the archive file.")
                     .WithExample("unpack", "/game/packs", "/game/extracted")
                     .WithExample("unpack", "/game/packs", "/game/extracted", "--mask", "*.pac");
+
+                config.AddBranch("export", export =>
+                {
+                    export.SetDescription("Export the game for other tools.");
+
+                    export.AddCommand<GodotExportCommand>("godot")
+                        .WithDescription("Write models (glb), textures (PNG), levels and UI data from the game's archives into a Godot project's asset folder, named in lower snake case. Only changed files are rewritten.")
+                        .WithExample("export", "godot", "/game", "/projects/BetaTeam/assets/original")
+                        .WithExample("export", "godot", "/game", "/projects/BetaTeam/assets/original", "--force");
+                });
 
                 config.AddBranch("convert", convert =>
                 {
@@ -42,6 +54,16 @@ namespace Malumware.BetaTeam.Cli
                             .WithDescription("Convert FIN model files in a directory to binary glTF (.glb), for importing into Blender.")
                             .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf")
                             .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf", "--mask", "U*.FIN", "--include-all-lods", "--include-hidden");
+                    });
+
+                    convert.AddBranch("tga", tga =>
+                    {
+                        tga.SetDescription("Convert TGA textures.");
+
+                        tga.AddCommand<TgaToPngCommand>("png")
+                            .WithDescription("Convert TGA images in a directory to PNG, named in lower snake case, with alpha where the game reads it.")
+                            .WithExample("convert", "tga", "png", "/game/extracted/Map", "/game/textures")
+                            .WithExample("convert", "tga", "png", "/game/extracted/LMap", "/game/textures", "--mask", "E1010*.TGA");
                     });
                 });
 
