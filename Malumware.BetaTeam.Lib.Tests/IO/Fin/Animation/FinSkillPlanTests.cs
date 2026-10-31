@@ -42,6 +42,24 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
         }
 
         [Fact]
+        public void AnimationNodes_NodeListedTwice_KeepsTheLastTrack()
+        {
+            // The engine walks A once per place it's listed and replaces its keys each time
+            var builder = Start()
+                .Actor(0x01, 0x02, 0x20, 0x20)
+                .Node(0x20, "P", 0x10)
+                .AnimNode(0x10, "A", [])
+                .SharedData(0x02, [], [MOVES, STILL]);
+            var file = Read(builder);
+            var actor = file.Objects.OfType<DDActor>().Single();
+
+            var nodes = FinSkillPlan.AnimationNodes(actor, actor.SharedData.Target!);
+
+            Assert.Equal(2, nodes.Count);
+            Assert.All(nodes, node => Assert.Same(actor.SharedData.Target!.Tracks[1], node.Track));
+        }
+
+        [Fact]
         public void AnimationNodes_MoreNodesThanTracks_Throws()
         {
             var file = ThreeNodes([], [MOVES, STILL]);

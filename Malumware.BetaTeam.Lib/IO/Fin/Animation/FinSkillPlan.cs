@@ -56,7 +56,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
         }
 
         // DDActor::SetupAnimNodes: a depth-first walk from the actor hands track i to the i-th Ni3dsAnimationNode
-        // (bones included). Tracks left over are never used.
+        // (bones included). Tracks left over are never used. A node listed in two places is reached twice and keeps
+        // the last track it was given, so every entry for it carries that one.
         public static IReadOnlyList<FinAnimatedNode> AnimationNodes(NiAVObject actorRoot, DDActorSharedData shared)
         {
             var nodes = Walk(actorRoot).OfType<Ni3dsAnimationNode>().ToList();
@@ -66,7 +67,13 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
                     $"{shared.Name} has {shared.Tracks.Count} animation tracks for {nodes.Count} animated nodes");
             }
 
-            return nodes.Select((node, i) => new FinAnimatedNode(node, shared.Tracks[i])).ToList();
+            var lastTrack = new Dictionary<Ni3dsAnimationNode, FinAnimationTrack>(ReferenceEqualityComparer.Instance);
+            for (var i = 0; i < nodes.Count; i++)
+            {
+                lastTrack[nodes[i]] = shared.Tracks[i];
+            }
+
+            return nodes.Select(node => new FinAnimatedNode(node, lastTrack[node])).ToList();
         }
 
         // Every material with a colour or transparency animator attached through Ni3dsPropAnimExtraData. Ambient and
