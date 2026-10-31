@@ -113,6 +113,20 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             return Assert.IsType<JsonObject>(node.Extras);
         }
 
+        // Without a default scene, importers have to guess which scene to load (Godot warns about it)
+        [Fact]
+        public void ToGlb_NamesItsSceneAsDefault()
+        {
+            // Arrange
+            var bytes = Node(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", []).EndOfFile().ToArray();
+
+            // Act
+            var json = GlbTestReader.Json(new FinToGltfConverter().ToGlb(FinReader.Read("TEST", bytes)));
+
+            // Assert
+            Assert.Equal(0, json["scene"]?.GetValue<int>());
+        }
+
         [Fact]
         public void ToGlb_KeepsHierarchyAndLocalTransforms_WhenNodeHasShape()
         {

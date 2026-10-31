@@ -105,6 +105,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             public ModelRoot Run()
             {
                 var scene = _model.UseScene(_file.Name);
+                _model.DefaultScene = scene;
                 var root = scene.CreateNode(_file.Name);
                 root.LocalTransform = new AffineTransform(null, FinGltfTransform.ZUpToYUp, null);
                 root.Extras = BuildRootExtras();
