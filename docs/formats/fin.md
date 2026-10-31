@@ -89,6 +89,9 @@ properties share one material.
 - The base colour is the `NiMaterialProperty`'s diffuse colour and alpha (alpha limited to `0`–`1`; one shipped
   material says `3.6`), and its emittance becomes the emissive colour. Vertex colours multiply the base colour, as
   glTF prescribes and as the engine's texture apply mode does.
+- The game's colours (diffuse, emittance, vertex colours) are display values: its renderer multiplies them as they
+  are, like the hardware of its time. glTF colours are linear, so they're converted with the sRGB curve; a renderer
+  that multiplies in linear space then shows the same products the game did. Alpha stays as it is.
 - A shape without normals can't be lit: the engine shows its vertex colours, which have the lighting baked in. Such a
   shape gets an unlit material (`KHR_materials_unlit`) with a white base colour; only the alpha is kept. Every
   shape with a lightmap is one of these. That the diffuse colour plays no part then is inferred, not confirmed.

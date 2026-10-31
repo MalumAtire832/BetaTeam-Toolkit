@@ -372,7 +372,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 if (geometry.Colors is { } colors)
                 {
                     var values = colors
-                        .Select(e => new Vector4(e.R, e.G, e.B, e.A))
+                        .Select(e => FinGltfColor.ToLinear(e.R, e.G, e.B, e.A))
                         .ToArray();
                     primitive.WithVertexAccessor("COLOR_0", RequireFinite(geometry, "colour", values));
                 }

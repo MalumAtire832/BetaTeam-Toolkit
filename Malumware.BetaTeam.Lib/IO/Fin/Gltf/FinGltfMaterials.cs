@@ -113,7 +113,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             // Unlit, the diffuse colour plays no part: the vertex colours replace the lighting it would feed (inferred)
             baseColor.Color = colors is null || unlit
                 ? new Vector4(1, 1, 1, opacity)
-                : new Vector4(colors.DiffuseColor.R, colors.DiffuseColor.G, colors.DiffuseColor.B, opacity);
+                : FinGltfColor.ToLinear(colors.DiffuseColor.R, colors.DiffuseColor.G, colors.DiffuseColor.B, opacity);
             if (baseImage is not null)
             {
                 var (mag, min) = mode is not null && mode.FilterMode < FILTERS.Length
@@ -127,7 +127,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             if (!unlit && colors is not null)
             {
                 var emissive = material.FindChannel("Emissive")!.Value;
-                emissive.Color = new Vector4(colors.Emittance.R, colors.Emittance.G, colors.Emittance.B, 1);
+                emissive.Color = FinGltfColor.ToLinear(colors.Emittance.R, colors.Emittance.G, colors.Emittance.B, 1);
             }
 
             material.Alpha = alpha?.AlphaBlending == true ? AlphaMode.BLEND : AlphaMode.OPAQUE;
