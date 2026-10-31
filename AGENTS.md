@@ -128,7 +128,7 @@ Rules for format work:
 | PAC        | Verified and documented (`docs/formats/pac.md`)                                              |
 | DDS audio  | Verified and documented (`docs/formats/dds-audio.md`)                                        |
 | Locale TXT | Verified and documented (`docs/formats/string-tables.md`)                                    |
-| TGA        | Standard Truevision TGA                                                                      |
+| TGA        | Verified and documented (`docs/formats/tga.md`): the engine's alpha and greyscale rules       |
 | FIN models | Reading verified and documented (`docs/formats/fin.md`); every shipped file parses. Inspect with `betateam fin dump`. Export to glTF for Blender with `betateam convert fin gltf` (#6; skinned meshes are bound to their bones), NIF for NifSkope (#5). |
 | DDF, PUZ   | Not yet investigated                                                                         |
 
