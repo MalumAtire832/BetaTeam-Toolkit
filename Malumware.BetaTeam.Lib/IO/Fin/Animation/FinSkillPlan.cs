@@ -29,6 +29,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
         IReadOnlyList<Ni3dsMorphShape> Morphs)
     {
         private const int MAX_DEPTH = 256;
+        // An hour; the longest shipped skills last seconds
+        private const float MAX_SKILL_SECONDS = 3600;
         // The engine's tolerances when it compares a node's pose at a skill's ends with its pose at time 0
         private const float ROTATION_TOLERANCE = 1e-8f;
         private const float POSITION_TOLERANCE = 1e-6f;
@@ -103,6 +105,15 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
         private static FinSkillPlan Plan(FinSkill skill, IReadOnlyList<FinAnimatedNode> nodes,
             IReadOnlyList<Ni3dsMorphShape> morphs, IReadOnlyDictionary<int, FinFlipBookUse> flipBooks)
         {
+            // Skills are sampled from start to end, so times that aren't numbers or a skill longer than any
+            // animation would be would keep a converter busy forever
+            if (!float.IsFinite(skill.StartTime) || !float.IsFinite(skill.EndTime)
+                || skill.EndTime - skill.StartTime > MAX_SKILL_SECONDS)
+            {
+                throw new InvalidDataException(
+                    $"Skill {skill.Name} runs from {skill.StartTime} to {skill.EndTime} s, which can't be played");
+            }
+
             var start = FinAnimationTime.ToTicks(skill.StartTime);
             var end = FinAnimationTime.ToTicks(skill.EndTime);
 

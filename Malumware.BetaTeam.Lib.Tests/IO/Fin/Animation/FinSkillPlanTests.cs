@@ -135,6 +135,18 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
             Assert.Throws<InvalidDataException>(() => FinSkillPlan.Build(Read(builder)));
         }
 
+        [Theory]
+        [InlineData(0, float.PositiveInfinity)]
+        [InlineData(float.NaN, 1)]
+        [InlineData(0, 1e30f)]
+        [InlineData(0, 3601)]
+        public void Build_UnusableSkillTimes_Throw(float start, float end)
+        {
+            var file = ThreeNodes([new Skill("broken", start, end)], [MOVES, STILL, STILL]);
+
+            Assert.Throws<InvalidDataException>(() => FinSkillPlan.Build(file));
+        }
+
         [Fact]
         public void Build_WithoutActor_IsEmpty()
         {
