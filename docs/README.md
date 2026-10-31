@@ -43,7 +43,7 @@ Almost all game data ships inside eight `.pac` archives next to the executable:
 | [DDS audio](formats/dds-audio.md)         | Documented, verified                             |
 | [String tables](formats/string-tables.md) | Documented, verified                             |
 | [TGA textures](formats/tga.md)            | Documented, verified                             |
-| [FIN models](formats/fin.md)              | Documented, verified (reading); converts to glTF |
+| [FIN models](formats/fin.md)              | Documented, verified (reading); converts to glTF with materials |
 | DDF fonts, PUZ puzzles                    | Not yet investigated                             |
 
 ## Conventions
