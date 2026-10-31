@@ -77,6 +77,14 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
                 .UInt16(0).UInt16(1).UInt16(2);
         }
 
+        // A triangle without normals, which the glb makes unlit
+        public static FinStreamBuilder UnlitShape(this FinStreamBuilder builder, uint linkId, string name,
+            params uint[] properties)
+        {
+            return ShapeGeometry(builder.SizedString("NiTriShape").NiObject(linkId, name), properties, 1, normals: false)
+                .UInt16(0).UInt16(1).UInt16(2);
+        }
+
         public static FinStreamBuilder SharedData(this FinStreamBuilder builder, uint linkId, Skill[] skills, Track[] tracks)
         {
             builder = builder.SizedString("DDActorSharedData").NiObject(linkId, "U0001")
@@ -197,7 +205,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
         }
 
         private static FinStreamBuilder ShapeGeometry(FinStreamBuilder builder, uint[] properties, int textureSets,
-            Vector3[]? vertices = null)
+            Vector3[]? vertices = null, bool normals = true)
         {
             vertices ??= [Vector3.Zero, Vector3.UnitX, Vector3.UnitY];
             builder = builder.NiAVObjectFields(properties)
@@ -208,7 +216,10 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
                 builder = builder.Floats(vertex.X, vertex.Y, vertex.Z);
             }
 
-            builder = builder.UInt32(PRESENT).Floats(0, 0, 1, 0, 0, 1, 0, 0, 1)
+            builder = normals
+                ? builder.UInt32(PRESENT).Floats(0, 0, 1, 0, 0, 1, 0, 0, 1)
+                : builder.UInt32(0);
+            builder = builder
                 .Floats(0.5f, 0.5f, 0, 0.75f)
                 .UInt16(1)
                 .UInt16((ushort)textureSets);

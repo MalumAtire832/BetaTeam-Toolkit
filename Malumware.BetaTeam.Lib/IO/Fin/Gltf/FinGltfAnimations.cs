@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text.Json.Nodes;
 using Malumware.BetaTeam.Lib.IO.Fin.Animation;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
 using SharpGLTF.Schema2;
@@ -15,27 +16,41 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         // 60 samples a second is one every 80 ticks
         private const float SAMPLE_TICKS = FinAnimationTime.TICKS_PER_SECOND / 60;
 
-        public static void Write(ModelRoot model, FinFile file, Func<NiAVObject, IReadOnlyList<Node>> nodesOf)
+        private const string BASE_COLOR = "pbrMetallicRoughness/baseColorFactor";
+        private const string EMISSIVE = "emissiveFactor";
+
+        // Writes the animations and returns the skills' flip-books, which have no glTF channel: an entry per skill and
+        // material, naming the frame images and when each shows (the root node's extras hold them, because a skill
+        // that only flips textures has no channel to make a glTF animation from)
+        public static JsonArray Write(ModelRoot model, FinFile file, Func<NiAVObject, IReadOnlyList<Node>> nodesOf,
+            FinGltfMaterials materials)
         {
             var plans = FinSkillPlan.Build(file);
+            var materialAnimations = FinSkillPlan.PropertyAnimators(file);
+            var flipBooks = new JsonArray();
             for (var i = 0; i < plans.Count; i++)
             {
                 var plan = plans[i];
+                var name = plan.Skill.Name ?? $"skill_{i}";
                 var channels = new List<Action<GltfAnimation>>();
                 AddNodeChannels(plan, nodesOf, channels);
                 AddMorphChannels(plan, nodesOf, channels);
+                AddMaterialChannels(plan, materialAnimations, materials, channels);
+                AddFlipBooks(plan, name, materials, flipBooks);
                 if (channels.Count == 0)
                 {
                     // glTF has no empty animations; the importer makes one for a skill without any
                     continue;
                 }
 
-                var animation = model.CreateAnimation(plan.Skill.Name ?? $"skill_{i}");
+                var animation = model.CreateAnimation(name);
                 foreach (var channel in channels)
                 {
                     channel(animation);
                 }
             }
+
+            return flipBooks;
         }
 
         // The weights a morph shape shows before any skill plays: its keys at time 0, for targets 1 and up
@@ -104,6 +119,89 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                         ? MathF.Abs(FinKeyEvaluator.Float(track.ScaleKeys, Time(core, ticks)))
                         : rest));
                     channels.AddRange(nodes.Select(node => (Action<GltfAnimation>)(a => a.CreateScaleChannel(node, keys, true))));
+                }
+                if (hasVisibility)
+                {
+                    // A step at the skill's start and at every key inside it; KHR_node_visibility on the node itself
+                    // says how it looks before any skill plays
+                    var steps = new SortedSet<float> { plan.StartTicks };
+                    steps.UnionWith(track.VisibilityKeys
+                        .Select(key => key.Time)
+                        .Where(ticks => plan.StartTicks < ticks && ticks <= plan.EndTicks));
+                    var keys = Sample(plan, steps.ToList(),
+                        ticks => FinKeyEvaluator.Visible(track.VisibilityKeys, Time(core, ticks)));
+                    channels.AddRange(nodes.Select(node => (Action<GltfAnimation>)(a =>
+                    {
+                        node.SetVisibility(!animated.Node.AppCulled);
+                        a.CreateVisibilityChannel(node, keys);
+                    })));
+                }
+            }
+        }
+
+        // Colour and transparency animators play on every skill's time (DDSkill::Update drives all of an actor's
+        // property animators), on every material made from the animated property
+        private static void AddMaterialChannels(FinSkillPlan plan, IReadOnlyList<FinMaterialAnimation> animations,
+            FinGltfMaterials materials, List<Action<GltfAnimation>> channels)
+        {
+            foreach (var animation in animations)
+            {
+                var colors = animation.Material;
+                var diffuse = animation.Diffuse is { } d && HasKeys(d.Keys) ? d : null;
+                var emissive = animation.Emissive is { } e && HasKeys(e.Keys) ? e : null;
+                var alpha = animation.Alpha is { } a && HasKeys(a.Keys) ? a : null;
+                foreach (var (material, unlit) in materials.MaterialsWith(colors))
+                {
+                    // Unlit, only the alpha shows
+                    if (alpha is not null || (diffuse is not null && !unlit))
+                    {
+                        var times = SampleTicks(plan, KeyTimes(diffuse).Concat(alpha is null ? [] : FinKeyEvaluator.KeyTimes(alpha.Keys)));
+                        var keys = Sample(plan, times, ticks => FinGltfMaterials.BaseColor(
+                            diffuse is null ? FinGltfMaterials.Diffuse(colors) : Color(diffuse, ticks),
+                            alpha is null ? colors.Alpha : FinKeyEvaluator.Float(alpha.Keys, Time(alpha.Core, ticks)),
+                            unlit));
+                        channels.Add(gltf => gltf.CreateMaterialPropertyChannel(material, BASE_COLOR, keys, true));
+                    }
+                    if (emissive is not null && !unlit)
+                    {
+                        var times = SampleTicks(plan, KeyTimes(emissive));
+                        var keys = Sample(plan, times, ticks => FinGltfMaterials.Emissive(Color(emissive, ticks)));
+                        channels.Add(gltf => gltf.CreateMaterialPropertyChannel(material, EMISSIVE, keys, true));
+                    }
+                }
+            }
+        }
+
+        // Ni3dsColorAnimator::AnimateUpdate: each channel kept within 0 to 1
+        private static Vector3 Color(Ni3dsColorAnimator animator, float ticks)
+        {
+            var value = FinKeyEvaluator.Position(animator.Keys, Time(animator.Core, ticks));
+
+            return Vector3.Clamp(value, Vector3.Zero, Vector3.One);
+        }
+
+        private static IEnumerable<float> KeyTimes(Ni3dsColorAnimator? animator)
+        {
+            return animator is null ? [] : FinKeyEvaluator.KeyTimes(animator.Keys);
+        }
+
+        private static void AddFlipBooks(FinSkillPlan plan, string skill, FinGltfMaterials materials, JsonArray flipBooks)
+        {
+            foreach (var use in plan.FlipBooks)
+            {
+                var frameCount = use.Textures.Images.Count;
+                var track = FinFlipBookFrames.Track(use.FlipBook, frameCount, plan.StartTicks, Math.Max(plan.StartTicks, plan.EndTicks));
+                var images = materials.ImageIndices(use.Textures);
+                foreach (var (material, _) in materials.MaterialsWith(use.Textures))
+                {
+                    flipBooks.Add(new JsonObject
+                    {
+                        ["skill"] = skill,
+                        ["material"] = material.LogicalIndex,
+                        ["images"] = new JsonArray(images.Select(i => (JsonNode?)i).ToArray()),
+                        ["times"] = new JsonArray(track.Select(e => (JsonNode?)e.Seconds).ToArray()),
+                        ["frames"] = new JsonArray(track.Select(e => (JsonNode?)e.Frame).ToArray()),
+                    });
                 }
             }
         }

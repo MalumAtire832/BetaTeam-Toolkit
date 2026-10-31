@@ -43,6 +43,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         private readonly string _textureUriPrefix;
         private readonly Dictionary<string, Material> _materials = new();
         private readonly Dictionary<string, Image> _images = new();
+        // Every material made, with the properties it was made from, so animations can find what an animated
+        // property became
+        private readonly List<(Material Material, IReadOnlyList<NiProperty> Properties, bool Unlit)> _created = [];
 
         public FinGltfMaterials(ModelRoot model, FinGltfExtrasBuilder extras, string textureUriPrefix)
         {
@@ -82,9 +85,45 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             {
                 material = Create(properties, unlit);
                 _materials[key] = material;
+                _created.Add((material, properties, unlit));
             }
 
             return material;
+        }
+
+        // The materials made with this property among their properties, and whether each is unlit
+        public IReadOnlyList<(Material Material, bool Unlit)> MaterialsWith(NiProperty property)
+        {
+            return _created
+                .Where(e => e.Properties.Any(p => ReferenceEquals(p, property)))
+                .Select(e => (e.Material, e.Unlit))
+                .ToList();
+        }
+
+        // The glTF image index of each of a texture property's images, in order; -1 for an image without a file name
+        public IReadOnlyList<int> ImageIndices(NiTextureProperty textures)
+        {
+            return textures.Images
+                .Select((_, index) => ImageName(index, textures.Images) is { } name ? UseImage(name).LogicalIndex : -1)
+                .ToList();
+        }
+
+        // The base colour factor for a material's diffuse colour and alpha (alpha kept within 0 to 1). Unlit, the
+        // diffuse colour plays no part: the vertex colours replace the lighting it would feed (inferred).
+        internal static Vector4 BaseColor(Vector3 diffuse, float alpha, bool unlit)
+        {
+            var opacity = Math.Clamp(alpha, 0, 1);
+
+            return unlit
+                ? new Vector4(1, 1, 1, opacity)
+                : FinGltfColor.ToLinear(diffuse.X, diffuse.Y, diffuse.Z, opacity);
+        }
+
+        internal static Vector3 Emissive(Vector3 emittance)
+        {
+            var color = FinGltfColor.ToLinear(emittance.X, emittance.Y, emittance.Z, 1);
+
+            return new Vector3(color.X, color.Y, color.Z);
         }
 
         private Material Create(IReadOnlyList<NiProperty> properties, bool unlit)
@@ -108,12 +147,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 material.WithPBRMetallicRoughness(Vector4.One, null, null, 0, 1);
             }
 
-            var opacity = colors is null ? 1 : Math.Clamp(colors.Alpha, 0, 1);
             var baseColor = material.FindChannel("BaseColor")!.Value;
-            // Unlit, the diffuse colour plays no part: the vertex colours replace the lighting it would feed (inferred)
-            baseColor.Color = colors is null || unlit
-                ? new Vector4(1, 1, 1, opacity)
-                : FinGltfColor.ToLinear(colors.DiffuseColor.R, colors.DiffuseColor.G, colors.DiffuseColor.B, opacity);
+            baseColor.Color = colors is null
+                ? Vector4.One
+                : BaseColor(Diffuse(colors), colors.Alpha, unlit);
             if (baseImage is not null)
             {
                 var (mag, min) = mode is not null && mode.FilterMode < FILTERS.Length
@@ -127,13 +164,19 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             if (!unlit && colors is not null)
             {
                 var emissive = material.FindChannel("Emissive")!.Value;
-                emissive.Color = FinGltfColor.ToLinear(colors.Emittance.R, colors.Emittance.G, colors.Emittance.B, 1);
+                var color = Emissive(new Vector3(colors.Emittance.R, colors.Emittance.G, colors.Emittance.B));
+                emissive.Color = new Vector4(color, 1);
             }
 
             material.Alpha = alpha?.AlphaBlending == true ? AlphaMode.BLEND : AlphaMode.OPAQUE;
             material.Extras = BuildExtras(properties, lightmap);
 
             return material;
+        }
+
+        internal static Vector3 Diffuse(NiMaterialProperty colors)
+        {
+            return new Vector3(colors.DiffuseColor.R, colors.DiffuseColor.G, colors.DiffuseColor.B);
         }
 
         // Every property stays in the extras, for what glTF can't say (depth buffer, vertex colour mode, ...). The

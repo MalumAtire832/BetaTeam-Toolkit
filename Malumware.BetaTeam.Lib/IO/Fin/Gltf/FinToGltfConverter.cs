@@ -128,7 +128,13 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 BindSkins();
                 if (_includeAnimations)
                 {
-                    FinGltfAnimations.Write(_model, _file, NodesOf);
+                    var flipBooks = FinGltfAnimations.Write(_model, _file, NodesOf, _materials);
+                    if (flipBooks.Count > 0)
+                    {
+                        var extras = BuildRootExtras();
+                        extras["flipbooks"] = flipBooks;
+                        root.Extras = extras;
+                    }
                 }
 
                 return _model;

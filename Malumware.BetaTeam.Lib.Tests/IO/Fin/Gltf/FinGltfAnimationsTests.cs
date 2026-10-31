@@ -206,6 +206,148 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         }
 
         [Fact]
+        public void Visibility_IsAStepPointerOnTheNode()
+        {
+            var blinks = new Track(Visibility: [(0, true), (2400, false), (4000, true)]);
+
+            var glb = new FinToGltfConverter().ToGlb(Read(OneNode([new Skill("blink", 0, 1)], blinks)));
+
+            var model = GlbTestReader.Read(glb);
+            var node = NodeNamed(model, "A");
+            var channel = Assert.Single(model.LogicalAnimations[0].Channels);
+            Assert.Equal($"/nodes/{node.LogicalIndex}/extensions/KHR_node_visibility/visible", channel.TargetPointerPath);
+            var json = GlbTestReader.Json(glb);
+            var sampler = json["animations"]![0]!["samplers"]![0]!;
+            Assert.Equal("STEP", sampler["interpolation"]!.GetValue<string>());
+            var visibility = node.GetCurveSamplers(model.LogicalAnimations[0]);
+            Assert.True(visibility.GetVisibility(0));
+            Assert.False(visibility.GetVisibility(2400 / 4800f));
+            Assert.True(visibility.GetVisibility(4000 / 4800f));
+        }
+
+        // A lit triangle 0x10 with material 0x20 and the given animators
+        private static FinStreamBuilder AnimatedMaterial(Skill[] skills, Func<FinStreamBuilder, FinStreamBuilder> animators,
+            bool unlit = false, params uint[] animatorIds)
+        {
+            var builder = Start().Actor(0x01, 0x02, 0x10);
+            builder = unlit ? builder.UnlitShape(0x10, "S", 0x20) : builder.Shape(0x10, "S", 0x20);
+            builder = builder.Material(0x20, new Vector3(0.5f, 0.5f, 0.5f), 0.75f, animatorIds);
+
+            return animators(builder).SharedData(0x02, skills, []);
+        }
+
+        private static IReadOnlyList<(float Key, T Value)> MaterialKeys<T>(ModelRoot model, string pointerEnd, int animation = 0)
+        {
+            var channel = model.LogicalAnimations[animation].Channels.Single(c => c.TargetPointerPath?.EndsWith(pointerEnd) == true);
+
+            return channel.GetSamplerOrNull<T>().GetLinearKeys().ToList();
+        }
+
+        [Fact]
+        public void DiffuseAnimator_AnimatesBaseColorFactorInLinear()
+        {
+            var builder = AnimatedMaterial([new Skill("glow", 0, 1)],
+                b => b.ColorAnimator(0x30, 0x20, 1, (0, new Vector3(0.5f, 0.5f, 0.5f)), (4800, new Vector3(1.5f, 0, 0))),
+                false, 0x30);
+
+            var model = Convert(builder);
+
+            var keys = MaterialKeys<Vector4>(model, "/pbrMetallicRoughness/baseColorFactor");
+            Assert.Equal(0.21404114f, keys[0].Value.X, TOLERANCE);
+            Assert.Equal(0.75f, keys[0].Value.W, TOLERANCE);
+            Assert.Equal(new Vector4(1, 0, 0, 0.75f), keys[^1].Value);
+        }
+
+        [Fact]
+        public void AlphaAnimator_AnimatesTheFourthComponent()
+        {
+            var builder = AnimatedMaterial([new Skill("fade", 0, 1)],
+                b => b.AlphaAnimator(0x30, 0x20, (0, 1f), (4800, 0f)), false, 0x30);
+
+            var model = Convert(builder);
+
+            var keys = MaterialKeys<Vector4>(model, "/pbrMetallicRoughness/baseColorFactor");
+            Assert.Equal(1, keys[0].Value.W, TOLERANCE);
+            Assert.Equal(0, keys[^1].Value.W, TOLERANCE);
+            Assert.Equal(0.21404114f, keys[^1].Value.X, TOLERANCE);
+        }
+
+        [Fact]
+        public void EmissiveAnimator_AnimatesEmissiveFactor()
+        {
+            var builder = AnimatedMaterial([new Skill("glow", 0, 1)],
+                b => b.ColorAnimator(0x30, 0x20, 3, (0, Vector3.Zero), (4800, Vector3.One)), false, 0x30);
+
+            var model = Convert(builder);
+
+            var keys = MaterialKeys<Vector3>(model, "/emissiveFactor");
+            Assert.Equal(Vector3.Zero, keys[0].Value);
+            Assert.Equal(Vector3.One, keys[^1].Value);
+        }
+
+        [Fact]
+        public void UnlitMaterial_KeepsWhiteBaseColour()
+        {
+            var builder = AnimatedMaterial([new Skill("fade", 0, 1)],
+                b => b
+                    .ColorAnimator(0x30, 0x20, 1, (0, Vector3.Zero), (4800, Vector3.One))
+                    .AlphaAnimator(0x31, 0x20, (0, 1f), (4800, 0f)),
+                true, 0x30, 0x31);
+
+            var model = Convert(builder);
+
+            Assert.All(MaterialKeys<Vector4>(model, "/pbrMetallicRoughness/baseColorFactor"),
+                key => Assert.Equal(new Vector3(1, 1, 1), new Vector3(key.Value.X, key.Value.Y, key.Value.Z)));
+        }
+
+        [Fact]
+        public void AmbientAnimator_IsSkipped()
+        {
+            var builder = AnimatedMaterial([new Skill("glow", 0, 1)],
+                b => b.ColorAnimator(0x30, 0x20, 0, (0, Vector3.Zero), (4800, Vector3.One)), false, 0x30);
+
+            Assert.Empty(Convert(builder).LogicalAnimations);
+        }
+
+        [Fact]
+        public void ColourAnimationsPlayInEverySkill()
+        {
+            var builder = AnimatedMaterial([new Skill("a", 0, 0.5f), new Skill("b", 0.5f, 1)],
+                b => b.AlphaAnimator(0x30, 0x20, (0, 1f), (4800, 0f)), false, 0x30);
+
+            var model = Convert(builder);
+
+            Assert.Equal(["a", "b"], model.LogicalAnimations.Select(a => a.Name));
+            Assert.Equal(0.5f, MaterialKeys<Vector4>(model, "baseColorFactor", 1)[0].Value.W, TOLERANCE);
+        }
+
+        [Fact]
+        public void FlipBook_IsWrittenToTheRootExtras()
+        {
+            var builder = Start()
+                .Actor(0x01, 0x02, 0x10)
+                .Shape(0x10, "Screen", 0x20)
+                .FlipBook(0x20, 0x21, 3, 0, 0, 400, 0x40, 0x41)
+                .Image(0x40, "On.tga")
+                .Image(0x41, "Off.tga")
+                .SharedData(0x02, [new Skill("blink", 0, 500 / 4800f, Actions: [3])], []);
+
+            var glb = new FinToGltfConverter().ToGlb(Read(builder));
+
+            var json = GlbTestReader.Json(glb);
+            var root = json["nodes"]!.AsArray().First(node => node!["extras"]?["file"] is not null)!;
+            var flipbook = Assert.Single(root["extras"]!["flipbooks"]!.AsArray())!;
+            Assert.Equal("blink", flipbook["skill"]!.GetValue<string>());
+            Assert.Equal(0, flipbook["material"]!.GetValue<int>());
+            var uris = GlbTestReader.ImageUris(glb);
+            var images = flipbook["images"]!.AsArray().Select(i => uris[i!.GetValue<int>()]).ToList();
+            Assert.Equal(["../textures/on.png", "../textures/off.png"], images);
+            Assert.Equal([0, 1, 0], flipbook["frames"]!.AsArray().Select(f => f!.GetValue<int>()));
+            float[] expected = [0, 200 / 4800f, 400 / 4800f];
+            Assert.Equal(expected, flipbook["times"]!.AsArray().Select(t => t!.GetValue<float>()));
+        }
+
+        [Fact]
         public void Converter_WithoutAnimations_WritesNone()
         {
             var moves = new Track(Positions: [(0, Vector3.Zero), (4800, Vector3.UnitX)]);
