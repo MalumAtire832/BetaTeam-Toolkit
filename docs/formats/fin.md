@@ -44,8 +44,8 @@ Blender can import:
   in Blender are Blender's conversion of them (a rotation about Z shows as one about −Y).
 - Shapes become meshes with their vertex positions, normals, colours and first two texture coordinates. Normals are
   scaled to unit length, which glTF requires; a shape with a zero normal gets none and Blender computes its own.
-  Every shape gets the same plain white material until textures are converted. A `DDCorona` has no triangles, so
-  its vertices are written as points.
+  Each shape gets a material built from the properties that apply to it (see [Materials](#materials)). A `DDCorona`
+  has no triangles, so its vertices are written as points.
 - A `NiLODNode` keeps only its most detailed level: the child whose range starts closest to the camera.
   `--include-all-lods` keeps every level. Each level's node carries its index into the ranges as `lodLevel`.
 - Characters' flat `LOD_` stand-ins (see [Distant characters](#distant-characters)) are left out the same way, and
@@ -66,14 +66,39 @@ Blender can import:
   is kept as `TextureCoordinateW` on shapes where it isn't always `0`.
 - glTF doesn't allow texture coordinates that aren't finite numbers, and some shipped files have them (see
   [NiTriShape](#nitrishape)). We chose to write `0` for each such u or v, and to record on the shape's node how many
-  coordinates were affected, as `NonFiniteTextureCoordinates`. In Blender this makes no visible difference, since
-  textures aren't converted yet and the default material doesn't use the second texture set. Once textures are
-  converted, an affected triangle will show one texel of its texture.
+  coordinates were affected, as `NonFiniteTextureCoordinates`. Nearly all of them are in the second texture set, which
+  only lightmaps use; an affected triangle shows one texel of its texture.
 - A skinned mesh (`Ni3dsSkin`) is written the way the game draws it, not with its stored vertices, which are in
   another frame (see [Skinned meshes](#skinned-meshes)). Its vertices are placed by their bones at rest, and the
   bones become the joints of a glTF skin. Blender imports them as an armature, and posing a bone moves the mesh.
 
 Animation and morphing aren't converted yet; their data is in the extras.
+
+#### Materials
+
+A shape's material comes from every property that applies to it: its own and those of the nodes above it, a lower
+one replacing a higher one of the same class, the way the engine keeps its drawing state. Shapes with the same
+properties share one material.
+
+- The texture is `images[index]` of the `NiTextureProperty`, on the first texture set. It isn't embedded: the glb
+  names it by a URI relative to the model, `../textures/<name>.png` by default (`--texture-uri-prefix` changes the
+  part before the name), with the name in lower snake case (`Studs Gry.tga` becomes `studs_gry.png`). Convert the
+  textures with `betateam convert tga png` into that folder, for example models into `out/models` and both texture
+  archives into `out/textures`. Textures are shared between models that way, as in the game.
+- The sampler follows the `NiTextureModeProperty`'s filter and clamp modes (see below).
+- The base colour is the `NiMaterialProperty`'s diffuse colour and alpha (alpha limited to `0`–`1`; one shipped
+  material says `3.6`), and its emittance becomes the emissive colour. Vertex colours multiply the base colour, as
+  glTF prescribes and as the engine's texture apply mode does.
+- A shape without normals can't be lit: the engine shows its vertex colours, which have the lighting baked in. Such a
+  shape gets an unlit material (`KHR_materials_unlit`) with a white base colour; only the alpha is kept. Every
+  shape with a lightmap is one of these. That the diffuse colour plays no part then is inferred, not confirmed.
+- A shape under a `NiAlphaProperty` with blending on is blended (`alphaMode: BLEND`); otherwise it's opaque. Every
+  shipped alpha property uses the ordinary source-alpha blend.
+- A lightmap (the one image of a `NiMultiTextureProperty`) multiplies the shape's colour, mapped with the second
+  texture set. glTF has no place for it, so the image goes into the glTF image list and the material's extras point
+  to it: `"lightmap": {"image": <index>, "texCoord": 1}`.
+- Every property is also written out in full in the material's extras, under `properties`, for what glTF has no
+  field for (depth buffer, vertex colour mode, specular, ...).
 
 ## Header
 
@@ -272,7 +297,16 @@ A node that turns to face the camera, so flat shapes below it always face the vi
 
 | Type  | Field | Meaning                                                                        |
 |-------|-------|--------------------------------------------------------------------------------|
-| `i32` | mode  | How the node turns (engine: `SetMode`). Shipped files use `0`, `1` and `2`; which turn is which isn't mapped yet |
+| `i32` | mode  | How the node turns (engine: `SetMode`), see below |
+
+The node keeps its position and scale and replaces its rotation, so that its local +Z points at the viewer and +Y
+stays up:
+
+| Mode | Turn                                                                                         |
+|------|----------------------------------------------------------------------------------------------|
+| `0`  | Faces the camera, rolled to keep the node's up axis as upright as the view allows            |
+| `1`  | Turns only about the parent's Y axis towards the camera; in shipped files that axis is up      |
+| `2`  | Takes the camera's rotation as it is (inferred from the code's shape, not traced in detail)   |
 
 ### NiLight
 
@@ -324,7 +358,8 @@ object in the tree, unless something lower down overrides it. Every property sta
 then a `bool` *master* flag (engine: `GetMaster`), whose effect hasn't been confirmed. The exception is
 `NiShadeProperty`, whose loader skips the property part and has no master flag.
 
-Most mode fields below are engine enums whose numbers aren't mapped to names yet.
+The mode fields below are engine enums. The texture modes follow the order NetImmerse kept into Gamebryo, which the
+game's renderer confirms; the vertex colour mode isn't mapped yet.
 
 ### NiMaterialProperty
 
@@ -345,6 +380,9 @@ Most mode fields below are engine enums whose numbers aren't mapped to names yet
 | `u32`  | source blend mode | Blend factor for the object's own colour                |
 | `u32`  | destination blend mode | Blend factor for the colour behind it              |
 
+Every shipped alpha property blends, with source mode `6` and destination mode `7`: source alpha and one minus source
+alpha in NetImmerse's order, the ordinary transparency blend.
+
 ### NiTextureProperty
 
 | Type     | Field  | Meaning                                                         |
@@ -362,6 +400,19 @@ How the texture is applied. Each field is an engine enum.
 | `u32` | filter | How the texture is sampled (nearest, bilinear, mipmaps)   |
 | `u32` | clamp  | Whether the texture repeats or stops at its edges         |
 
+| Value | Filter                                    | Clamp                                  |
+|-------|-------------------------------------------|----------------------------------------|
+| `0`   | Nearest texel                             | Clamped in both directions             |
+| `1`   | Bilinear                                  | Clamped in u, repeating in v           |
+| `2`   | Trilinear (bilinear, blending mipmaps)    | Repeating in u, clamped in v           |
+| `3`   | Nearest texel, nearest mipmap             | Repeating in both directions           |
+| `4`   | Nearest texel, blending mipmaps           |                                        |
+| `5`   | Bilinear, nearest mipmap                  |                                        |
+
+The renderer stores clamp modes as a u and a v address mode in that order, so which of the two is u is inferred from
+the order. Without mipmaps, the renderer falls back to nearest (`3`, `4`) or bilinear (`2`, `5`). Every shipped apply mode is
+`3`, which multiplies the texture with the lit or vertex colour, alpha included.
+
 ### NiMultiTextureProperty
 
 Several textures drawn on top of each other in stages. Each list has one entry per stage.
@@ -372,6 +423,9 @@ Several textures drawn on top of each other in stages. Each list has one entry p
 | `u32` + count × `u32` | combine modes | How each stage combines with the one before             |
 | `u32` + count × `u32` | clamp modes   | As in `NiTextureModeProperty`                           |
 | `u32` + count × `u32` | filter modes  | As in `NiTextureModeProperty`                           |
+
+The game uses it only for lightmaps: every shipped one has a single image, combine mode `0`, clamp `0` and filter `1`.
+Combine mode `0` multiplies the image with the colour below it, at full strength (not doubled).
 
 ### Other properties
 

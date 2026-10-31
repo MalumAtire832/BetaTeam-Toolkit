@@ -1,10 +1,12 @@
 using System.Numerics;
+using System.Text.Json.Nodes;
+using Malumware.BetaTeam.Lib.IO;
 using Malumware.BetaTeam.Lib.IO.Fin;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
 using Malumware.BetaTeam.Lib.IO.Fin.Gltf;
+using Malumware.BetaTeam.Lib.IO.Pac;
 using Malumware.BetaTeam.Lib.Tests.GameData;
 using SharpGLTF.Schema2;
-using SharpGLTF.Validation;
 using Xunit.Abstractions;
 
 namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
@@ -13,6 +15,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
     {
         // Models are about 50 units tall; this is float noise after inverting and multiplying the bone matrices
         private const float MAX_REST_POSE_ERROR = 1e-3f;
+        private static readonly string[] TEXTURE_ARCHIVES = ["Map", "LMap"];
 
         private readonly ITestOutputHelper _output;
 
@@ -27,7 +30,6 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         {
             // Arrange
             var failures = new List<string>();
-            var settings = new ReadSettings { Validation = ValidationMode.Strict };
             var files = FinGameDataTests
                 .FinFiles()
                 .ToList();
@@ -43,7 +45,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                     try
                     {
                         var glb = new FinToGltfConverter(includeAll, includeAll).ToGlb(file);
-                        var model = ModelRoot.ParseGLB(glb, settings);
+                        var model = GlbTestReader.Read(glb);
                         if (!includeAll)
                         {
                             meshesWithoutNormals += model.LogicalMeshes
@@ -154,5 +156,70 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             Assert.NotEqual(0, skins);
             Assert.Empty(failures);
         }
-    }
+    
+        // Textures are converted separately from Map.pac and LMap.pac, so every image a model names must be one of them
+        [GameDataFact]
+        public void ToGlb_ReferencesOnlyShippedTextures_ForEveryModel()
+        {
+            // Arrange
+            var reader = new PacArchiveReader();
+            var textures = GameDataPaths
+                .Archives()
+                .Where(e => TEXTURE_ARCHIVES.Contains(Path.GetFileNameWithoutExtension(e), StringComparer.OrdinalIgnoreCase))
+                .SelectMany(e => reader.Read(e).Entries.Keys)
+                .Where(e => e.FileName.EndsWith(".tga", StringComparison.OrdinalIgnoreCase))
+                .Select(e => FinToGltfConverter.DEFAULT_TEXTURE_URI_PREFIX + AssetFileName.WithExtension(e.FileName, "png"))
+                .ToHashSet();
+            var unknown = new SortedSet<string>();
+            var referenced = 0;
+
+            // Act
+            foreach (var (name, data) in FinGameDataTests.FinFiles())
+            {
+                var glb = new FinToGltfConverter(true, true).ToGlb(FinReader.Read(name, data));
+                foreach (var uri in GlbTestReader.ImageUris(glb))
+                {
+                    referenced++;
+                    if (!textures.Contains(uri))
+                    {
+                        unknown.Add($"{name}: {uri}");
+                    }
+                }
+            }
+
+            // Assert
+            Assert.NotEqual(0, referenced);
+            Assert.Empty(unknown);
+        }
+
+        // Every lightmapped shape in the game is an environment piece with baked vertex colours and no normals
+        [GameDataFact]
+        public void ToGlb_GivesEveryLightmappedShapeAnUnlitMaterial()
+        {
+            // Arrange
+            var lightmapped = 0;
+            var lit = new List<string>();
+
+            // Act
+            foreach (var (name, data) in FinGameDataTests.FinFiles())
+            {
+                var model = new FinToGltfConverter(true, true).ToModel(FinReader.Read(name, data));
+                foreach (var material in model.LogicalMaterials)
+                {
+                    if (material.Extras is JsonObject extras && extras.ContainsKey("lightmap"))
+                    {
+                        lightmapped++;
+                        if (!material.Unlit)
+                        {
+                            lit.Add($"{name}: {material.Name}");
+                        }
+                    }
+                }
+            }
+
+            // Assert
+            Assert.NotEqual(0, lightmapped);
+            Assert.Empty(lit);
+        }
+}
 }

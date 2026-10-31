@@ -1,7 +1,7 @@
 namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
 {
     // How the texture from the NiTextureProperty is applied, filtered and wrapped (engine: GetApply, GetFilter,
-    // GetClamp; the enum values aren't mapped yet)
+    // GetClamp). The values are listed in docs/formats/fin.md.
     public class NiTextureModeProperty : NiProperty
     {
         public uint ApplyMode { get; private set; }
