@@ -22,8 +22,9 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                 .NiNodeFields(children, []);
         }
 
-        // A triangle with two texture sets and vertex colours; normals only when lit
-        private static FinStreamBuilder Shape(FinStreamBuilder builder, uint linkId, uint[] properties, bool normals = true)
+        // A triangle with two texture sets and vertex colours (every component `color`); normals only when lit
+        private static FinStreamBuilder Shape(FinStreamBuilder builder, uint linkId, uint[] properties, bool normals = true,
+            float color = 1)
         {
             builder = builder.SizedString("NiTriShape").NiObject(linkId, $"Shape{linkId:X}")
                 .NiAVObjectFields(properties)
@@ -38,7 +39,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
                 .UInt16(1)                                                  // triangle count
                 .UInt16(2)                                                  // texture set count
                 .UInt32(PRESENT).Floats(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0)
-                .UInt32(PRESENT).Floats(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) // colours
+                .UInt32(PRESENT).Floats(Enumerable.Repeat(color, 12).ToArray()) // colours
                 .UInt32(0)                                                  // no triangle planes
                 .UInt16(0).UInt16(1).UInt16(2);
         }
@@ -227,10 +228,26 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             // Act
             var material = ShapeMaterial(Convert(builder), "Shape20");
 
-            // Assert
+            // Assert: the game's colours are display (sRGB) values; glTF's are linear
             Assert.False(material.Unlit);
-            Assert.Equal(new Vector4(0.2f, 0.4f, 0.6f, 0.5f), material.FindChannel("BaseColor")!.Value.Color);
-            Assert.Equal(new Vector3(0.1f, 0.2f, 0.3f), Xyz(material.FindChannel("Emissive")!.Value.Color));
+            AssertNear(new Vector4(Linear(0.2f), Linear(0.4f), Linear(0.6f), 0.5f), material.FindChannel("BaseColor")!.Value.Color);
+            AssertNear(new Vector4(Linear(0.1f), Linear(0.2f), Linear(0.3f), 1), material.FindChannel("Emissive")!.Value.Color);
+        }
+
+        [Fact]
+        public void ToModel_WritesVertexColorsAsLinear()
+        {
+            // Arrange
+            var builder = Shape(Start(), 0x20, [], color: 0.5f);
+
+            // Act
+            var primitive = Assert.Single(Convert(builder).LogicalMeshes[0].Primitives);
+
+            // Assert: colour converted, alpha as it is
+            var colors = primitive
+                .GetVertexAccessor("COLOR_0")
+                .AsVector4Array();
+            AssertNear(new Vector4(Linear(0.5f), Linear(0.5f), Linear(0.5f), 0.5f), colors[0]);
         }
 
         [Fact]
@@ -437,6 +454,17 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         private static Vector3 Xyz(Vector4 v)
         {
             return new Vector3(v.X, v.Y, v.Z);
+        }
+
+        // The sRGB transfer function, written out here independently of the converter
+        private static float Linear(float c)
+        {
+            return c <= 0.04045f ? c / 12.92f : MathF.Pow((c + 0.055f) / 1.055f, 2.4f);
+        }
+
+        private static void AssertNear(Vector4 expected, Vector4 actual)
+        {
+            Assert.True(Vector4.Distance(expected, actual) < 1e-5f, $"Expected {expected}, got {actual}");
         }
     }
 }
