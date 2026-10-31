@@ -38,3 +38,8 @@ The engine has its own TGA loader rather than a library. It accepts image types 
 
 The toolkit's `TgaReader` follows these rules for the types the game ships (2, 3, 10 and 11) and rejects the rest. Its
 output is always RGBA with rows top to bottom; `TgaImage.HasAlpha` says whether the alpha came from the file.
+
+## Converting
+
+`betateam convert tga png <input> <output>` writes each image as a PNG named with the lower snake case file-name rule
+(`Studs Gry.tga` becomes `studs_gry.png`): RGBA for 32-bit images, RGB for the rest.

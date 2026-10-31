@@ -1,5 +1,6 @@
 using Malumware.BetaTeam.Cli.Commands.Convert.Dds;
 using Malumware.BetaTeam.Cli.Commands.Convert.Fin;
+using Malumware.BetaTeam.Cli.Commands.Convert.Tga;
 using Malumware.BetaTeam.Cli.Commands.Fin;
 using Malumware.BetaTeam.Cli.Commands.Unpack;
 using Spectre.Console.Cli;
@@ -42,6 +43,16 @@ namespace Malumware.BetaTeam.Cli
                             .WithDescription("Convert FIN model files in a directory to binary glTF (.glb), for importing into Blender.")
                             .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf")
                             .WithExample("convert", "fin", "gltf", "/game/extracted/Fin", "/game/gltf", "--mask", "U*.FIN", "--include-all-lods", "--include-hidden");
+                    });
+
+                    convert.AddBranch("tga", tga =>
+                    {
+                        tga.SetDescription("Convert TGA textures.");
+
+                        tga.AddCommand<TgaToPngCommand>("png")
+                            .WithDescription("Convert TGA images in a directory to PNG, named in lower snake case, with alpha where the game reads it.")
+                            .WithExample("convert", "tga", "png", "/game/extracted/Map", "/game/textures")
+                            .WithExample("convert", "tga", "png", "/game/extracted/LMap", "/game/textures", "--mask", "E1010*.TGA");
                     });
                 });
 

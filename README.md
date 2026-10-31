@@ -50,6 +50,12 @@ All text the player reads lives in `.TXT` string tables in `Locale_en.pac`. They
 loads every table into one shared, case-insensitive lookup where the first occurrence of a key wins.
 See [docs/formats/string-tables.md](docs/formats/string-tables.md).
 
+### TGA Textures
+The textures in `Map.pac` and the lightmaps in `LMap.pac` are Truevision TGA images. The game's own loader differs
+from the standard: a 32-bit image always uses its fourth byte as alpha, and every other depth is opaque. The reader
+follows the game, and `convert tga png` writes PNGs that look the way the game shows them.
+See [docs/formats/tga.md](docs/formats/tga.md).
+
 ### FIN Models
 `.FIN` files hold every 3D object in the game: environments, units, level objects and characters. Each is a
 NetImmerse scene graph in the early, pre-NIF stream layout, extended with Digital Domain classes that carry an
@@ -129,6 +135,30 @@ Examples:
 ```bash
 betateam convert fin gltf /game/extracted/Fin /game/gltf
 betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --include-all-lods --include-hidden
+```
+
+### `convert tga png` — Convert TGA textures to PNG
+
+Converts `.TGA` images to PNG: RGBA for 32-bit images, RGB for the rest, following the game's alpha rules. Output
+files are named in lower snake case (`Studs Gry.tga` becomes `studs_gry.png`); two inputs that would get the same name
+stop the command before anything is written.
+See [docs/formats/tga.md](docs/formats/tga.md).
+
+```
+betateam convert tga png <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>]
+```
+
+| Argument / Option  | Description                          | Default |
+|--------------------|--------------------------------------|---------|
+| `INPUT_DIRECTORY`  | Directory containing `.TGA` files    | —       |
+| `OUTPUT_DIRECTORY` | Directory to write `.png` files into | —       |
+| `-m`, `--mask`     | File glob pattern                    | `*.TGA` |
+
+Examples:
+
+```bash
+betateam convert tga png /game/extracted/Map /game/textures
+betateam convert tga png /game/extracted/LMap /game/textures --mask E1010*.TGA
 ```
 
 ### `fin dump` — Inspect FIN models
