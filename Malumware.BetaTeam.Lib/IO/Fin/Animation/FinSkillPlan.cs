@@ -1,5 +1,6 @@
 using System.Numerics;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
+using Malumware.BetaTeam.Lib.IO.Fin.Gltf;
 
 namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
 {
@@ -221,17 +222,24 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             return result;
         }
 
-        // Every object below a root in depth-first pre-order, each place it's listed
+        // Every object below a root in depth-first pre-order, each place it's listed. A node listed twice at every
+        // level would multiply into more places than memory or time allows, so the walk stops where the glTF
+        // converter does.
         private static IEnumerable<NiAVObject> Walk(NiAVObject root)
         {
             var stack = new Stack<(NiAVObject Block, int Depth)>();
             stack.Push((root, 0));
+            var visited = 0;
             while (stack.Count > 0)
             {
                 var (block, depth) = stack.Pop();
                 if (depth >= MAX_DEPTH)
                 {
                     throw new InvalidDataException($"Nodes are nested more than {MAX_DEPTH} levels deep");
+                }
+                if (++visited > FinToGltfConverter.MAX_NODES)
+                {
+                    throw new InvalidDataException($"The scene lists more than {FinToGltfConverter.MAX_NODES} nodes");
                 }
 
                 yield return block;

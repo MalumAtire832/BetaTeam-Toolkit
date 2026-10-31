@@ -100,6 +100,24 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
         }
 
         [Fact]
+        public void Build_NodesListedTwiceAtEveryLevel_ThrowsInsteadOfWalkingForever()
+        {
+            // Each node lists the next one twice, so a walk would visit 2^40 places
+            const uint FIRST = 0x100;
+            const int LEVELS = 40;
+            var builder = Start().Actor(0x01, 0x02, FIRST);
+            for (uint i = 0; i < LEVELS; i++)
+            {
+                builder = i == LEVELS - 1
+                    ? builder.Node(FIRST + i, $"N{i}")
+                    : builder.Node(FIRST + i, $"N{i}", FIRST + i + 1, FIRST + i + 1);
+            }
+            builder = builder.SharedData(0x02, [new Skill("walk", 0, 1)], []);
+
+            Assert.Throws<InvalidDataException>(() => FinSkillPlan.Build(Read(builder)));
+        }
+
+        [Fact]
         public void Build_WithoutActor_IsEmpty()
         {
             var file = Read(Start().TopLevel().Node(0x10, "Root"));
