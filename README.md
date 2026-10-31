@@ -89,6 +89,38 @@ betateam unpack /game/packs /game/extracted --mask *.pac
 betateam unpack /game/packs /game/extracted --mask Audio.pac
 ```
 
+### `export godot` — Export the game for a Godot project
+
+Reads the game's archives directly and writes the asset tree of the Godot port, every file named in lower snake case:
+
+| Folder      | Contents                                                                                      |
+|-------------|-----------------------------------------------------------------------------------------------|
+| `models/`   | Every `.FIN` as `.glb`, with every level of detail and hidden object, materials included      |
+| `textures/` | `Map.pac` and `LMap.pac` as `.png`; the models refer to them as `../textures/<name>.png`       |
+| `levels/`   | Every `.PUZ`, copied                                                                          |
+| `data/`     | `UILAYOUT.TXT`, `CATEGORYUNITS.TXT` and `CATEGORYIMAGES.TXT`, copied                          |
+
+Files newer than their archive are left as they are, so a second run only writes what changed; `--force` rewrites
+everything, for after a toolkit update. Files in these folders that the game no longer produces are deleted. Two game
+files that would get the same name stop the export before anything is written.
+
+```
+betateam export godot <GAME_DIRECTORY> <OUTPUT_DIRECTORY> [--force]
+```
+
+| Argument / Option  | Description                                                   | Default |
+|--------------------|---------------------------------------------------------------|---------|
+| `GAME_DIRECTORY`   | The installed game: the directory with the `.pac` archives    | —       |
+| `OUTPUT_DIRECTORY` | The project's asset folder                                    | —       |
+| `--force`          | Rewrite every file                                            | off     |
+
+Examples:
+
+```bash
+betateam export godot /game /projects/BetaTeam/assets/original
+betateam export godot /game /projects/BetaTeam/assets/original --force
+```
+
 ### `convert dds wav` — Convert DDS audio to WAV
 
 Converts `.DDS` proprietary audio files (Digital Domain Sound) to standard WAV files.

@@ -11,7 +11,7 @@ are custom to Digital Domain.
 | Project                        | Purpose                                                      |
 |--------------------------------|--------------------------------------------------------------|
 | `Malumware.Common`             | Shared helpers (e.g. `BinaryReaderExtensions`)               |
-| `Malumware.BetaTeam.Lib`       | Format parsers, readers and converters, under `IO/<Format>/` |
+| `Malumware.BetaTeam.Lib`       | Format parsers, readers and converters, under `IO/<Format>/`; exports for other projects under `Export/` (`GodotExport`, used by the Godot port through `betateam export godot`) |
 | `Malumware.BetaTeam.Lib.Tests` | xUnit tests, mirroring the `Lib` folder structure            |
 | `Malumware.BetaTeam.Cli`       | `betateam` CLI built on Spectre.Console.Cli                  |
 
