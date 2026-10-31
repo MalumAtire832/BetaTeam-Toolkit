@@ -50,12 +50,18 @@ All text the player reads lives in `.TXT` string tables in `Locale_en.pac`. They
 loads every table into one shared, case-insensitive lookup where the first occurrence of a key wins.
 See [docs/formats/string-tables.md](docs/formats/string-tables.md).
 
+### TGA Textures
+The textures in `Map.pac` and the lightmaps in `LMap.pac` are Truevision TGA images. The game's own loader differs
+from the standard: a 32-bit image always uses its fourth byte as alpha, and every other depth is opaque. The reader
+follows the game, and `convert tga png` writes PNGs that look the way the game shows them.
+See [docs/formats/tga.md](docs/formats/tga.md).
+
 ### FIN Models
 `.FIN` files hold every 3D object in the game: environments, units, level objects and characters. Each is a
 NetImmerse scene graph in the early, pre-NIF stream layout, extended with Digital Domain classes that carry an
 object's description, behaviour DLL, shadow settings, named animation clips with their sounds, and floor points.
-The library reads every shipped file and converts it to glTF for Blender (`convert fin gltf`); NIF export is not
-implemented yet. See [docs/formats/fin.md](docs/formats/fin.md).
+The library reads every shipped file and converts it to glTF for Blender (`convert fin gltf`), with materials and
+textures; NIF export is not implemented yet. See [docs/formats/fin.md](docs/formats/fin.md).
 
 
 ## CLI
@@ -83,6 +89,38 @@ betateam unpack /game/packs /game/extracted --mask *.pac
 betateam unpack /game/packs /game/extracted --mask Audio.pac
 ```
 
+### `export godot` — Export the game for a Godot project
+
+Reads the game's archives directly and writes the asset tree of the Godot port, every file named in lower snake case:
+
+| Folder      | Contents                                                                                      |
+|-------------|-----------------------------------------------------------------------------------------------|
+| `models/`   | Every `.FIN` as `.glb`, with every level of detail and hidden object, materials and skill animations included |
+| `textures/` | `Map.pac` and `LMap.pac` as `.png`; the models refer to them as `../textures/<name>.png`       |
+| `levels/`   | Every `.PUZ`, copied                                                                          |
+| `data/`     | `UILAYOUT.TXT`, `CATEGORYUNITS.TXT` and `CATEGORYIMAGES.TXT`, copied                          |
+
+Files newer than their archive are left as they are, so a second run only writes what changed; `--force` rewrites
+everything, for after a toolkit update. Files in these folders that the game no longer produces are deleted. Two game
+files that would get the same name stop the export before anything is written.
+
+```
+betateam export godot <GAME_DIRECTORY> <OUTPUT_DIRECTORY> [--force]
+```
+
+| Argument / Option  | Description                                                   | Default |
+|--------------------|---------------------------------------------------------------|---------|
+| `GAME_DIRECTORY`   | The installed game: the directory with the `.pac` archives    | —       |
+| `OUTPUT_DIRECTORY` | The project's asset folder                                    | —       |
+| `--force`          | Rewrite every file                                            | off     |
+
+Examples:
+
+```bash
+betateam export godot /game /projects/BetaTeam/assets/original
+betateam export godot /game /projects/BetaTeam/assets/original --force
+```
+
 ### `convert dds wav` — Convert DDS audio to WAV
 
 Converts `.DDS` proprietary audio files (Digital Domain Sound) to standard WAV files.
@@ -108,12 +146,15 @@ betateam convert dds wav /game/extracted/audio /game/wav --mask BUILD1LOOP.DDS
 ### `convert fin gltf` — Convert FIN models to glTF
 
 Converts `.FIN` models to binary glTF (`.glb`) for importing into Blender. The node hierarchy and each object's
-transform are kept, skinned meshes are bound to their bones as an armature, and the fields that aren't geometry show
-up as custom properties.
+transform are kept, skinned meshes are bound to their bones as an armature, each shape gets a material from its
+render properties, every skill becomes an animation (morphs, visibility and colours included), and the fields that
+aren't geometry show up as custom properties. Textures aren't embedded: the
+glb refers to `../textures/<name>.png`, so convert the models into a `models` folder and the textures, with
+`convert tga png`, into a `textures` folder beside it.
 See [docs/formats/fin.md](docs/formats/fin.md#converting-to-gltf).
 
 ```
-betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--include-all-lods] [--include-hidden]
+betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>] [--include-all-lods] [--include-hidden] [--texture-uri-prefix <prefix>]
 ```
 
 | Argument / Option    | Description                                                                                               | Default |
@@ -123,12 +164,42 @@ betateam convert fin gltf <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>
 | `-m`, `--mask`       | File glob pattern                                                                                         | `*.FIN` |
 | `--include-all-lods` | Keep every level of detail instead of only the most detailed, including characters' flat `LOD_` stand-ins | off     |
 | `--include-hidden`   | Keep the objects the game loads hidden, such as effects, glows and lights it switches on when needed      | off     |
+| `--texture-uri-prefix` | Put in front of each texture's PNG name in the glb, relative to the glb                                 | `../textures/` |
 
 Examples:
 
 ```bash
 betateam convert fin gltf /game/extracted/Fin /game/gltf
 betateam convert fin gltf /game/extracted/Fin /game/gltf --mask U*.FIN --include-all-lods --include-hidden
+
+# Models with their textures, for Blender
+betateam convert fin gltf /game/extracted/Fin /game/out/models
+betateam convert tga png /game/extracted/Map /game/out/textures
+betateam convert tga png /game/extracted/LMap /game/out/textures
+```
+
+### `convert tga png` — Convert TGA textures to PNG
+
+Converts `.TGA` images to PNG: RGBA for 32-bit images, RGB for the rest, following the game's alpha rules. Output
+files are named in lower snake case (`Studs Gry.tga` becomes `studs_gry.png`); two inputs that would get the same name
+stop the command before anything is written.
+See [docs/formats/tga.md](docs/formats/tga.md).
+
+```
+betateam convert tga png <INPUT_DIRECTORY> <OUTPUT_DIRECTORY> [--mask <pattern>]
+```
+
+| Argument / Option  | Description                          | Default |
+|--------------------|--------------------------------------|---------|
+| `INPUT_DIRECTORY`  | Directory containing `.TGA` files    | —       |
+| `OUTPUT_DIRECTORY` | Directory to write `.png` files into | —       |
+| `-m`, `--mask`     | File glob pattern                    | `*.TGA` |
+
+Examples:
+
+```bash
+betateam convert tga png /game/extracted/Map /game/textures
+betateam convert tga png /game/extracted/LMap /game/textures --mask E1010*.TGA
 ```
 
 ### `fin dump` — Inspect FIN models
