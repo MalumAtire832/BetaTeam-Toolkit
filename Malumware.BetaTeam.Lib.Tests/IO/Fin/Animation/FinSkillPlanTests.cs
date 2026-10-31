@@ -140,6 +140,7 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
         [InlineData(float.NaN, 1)]
         [InlineData(0, 1e30f)]
         [InlineData(0, 3601)]
+        [InlineData(4000, 4001)]
         public void Build_UnusableSkillTimes_Throw(float start, float end)
         {
             var file = ThreeNodes([new Skill("broken", start, end)], [MOVES, STILL, STILL]);

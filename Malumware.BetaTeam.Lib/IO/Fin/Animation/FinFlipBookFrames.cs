@@ -51,12 +51,14 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Animation
             float startTicks, float endTicks)
         {
             var result = new List<(float Seconds, int Frame)> { (0, FrameAt(flip, frameCount, startTicks)) };
-            for (var ticks = startTicks + 1; ticks <= endTicks; ticks++)
+            // Counted in whole ticks from the start, because a float tick stops growing by one beyond 2^24
+            var length = (long)Math.Max(0, endTicks - startTicks);
+            for (long offset = 1; offset <= length; offset++)
             {
-                var frame = FrameAt(flip, frameCount, ticks);
+                var frame = FrameAt(flip, frameCount, startTicks + offset);
                 if (frame != result[^1].Frame)
                 {
-                    result.Add(((ticks - startTicks) / FinAnimationTime.TICKS_PER_SECOND, frame));
+                    result.Add((offset / FinAnimationTime.TICKS_PER_SECOND, frame));
                 }
             }
 

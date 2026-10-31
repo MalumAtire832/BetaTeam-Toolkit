@@ -78,6 +78,17 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Animation
         }
 
         [Fact]
+        public void Track_BeyondFloatPrecision_Ends()
+        {
+            // From 2^24 on, a float tick plus one is the same float
+            const float START = 16_777_216;
+
+            var track = FinFlipBookFrames.Track(FlipBook(0), 4, START, START + 100);
+
+            Assert.NotEmpty(track);
+        }
+
+        [Fact]
         public void Track_ZeroLength_HasOneEntry()
         {
             Assert.Equal([(0f, 2)], FinFlipBookFrames.Track(FlipBook(2), 4, 200, 200));
