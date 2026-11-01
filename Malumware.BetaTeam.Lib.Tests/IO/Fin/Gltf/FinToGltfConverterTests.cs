@@ -113,6 +113,20 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             return Assert.IsType<JsonObject>(node.Extras);
         }
 
+        // Without a default scene, importers have to guess which scene to load (Godot warns about it)
+        [Fact]
+        public void ToGlb_NamesItsSceneAsDefault()
+        {
+            // Arrange
+            var bytes = Node(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", []).EndOfFile().ToArray();
+
+            // Act
+            var json = GlbTestReader.Json(new FinToGltfConverter().ToGlb(FinReader.Read("TEST", bytes)));
+
+            // Assert
+            Assert.Equal(0, json["scene"]?.GetValue<int>());
+        }
+
         [Fact]
         public void ToGlb_KeepsHierarchyAndLocalTransforms_WhenNodeHasShape()
         {
@@ -502,6 +516,205 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             // Assert
             Assert.Equal(PrimitiveType.POINTS, Assert.Single(corona.Mesh.Primitives).DrawPrimitiveType);
             Assert.Equal(1.5f, Extras(corona)["Size"]!.GetValue<float>());
+        }
+
+        // A node with a collision propagate mode and a bounding volume
+        private static FinStreamBuilder VolumeNode(
+            FinStreamBuilder builder, uint linkId, string name, uint collisionPropagate,
+            Func<FinStreamBuilder, FinStreamBuilder> writeVolume, uint[]? children = null)
+        {
+            return builder.SizedString("NiNode").NiObject(linkId, name)
+                .NiAVObjectFields(collisionPropagate, writeVolume)
+                .NiNodeFields(children ?? [], []);
+        }
+
+        private static FinStreamBuilder BoxVolume(FinStreamBuilder builder)
+        {
+            return builder.UInt32(1)
+                .Floats(1, 2, 3)                                // center
+                .Floats(1, 0, 0, 0, 1, 0, 0, 0, 1)              // axes
+                .Floats(4, 5, 6)                                // extents
+                .Byte(0);                                       // inverted
+        }
+
+        private static FinStreamBuilder SphereVolume(FinStreamBuilder builder)
+        {
+            return builder.UInt32(0).Floats(0, 0, 0, 1).Byte(0);
+        }
+
+        private static FinStreamBuilder HalfSpaceVolume(FinStreamBuilder builder)
+        {
+            return builder.UInt32(5).Floats(0, 0, 1, 2);
+        }
+
+        private static byte[] ToGlb(byte[] bytes)
+        {
+            return new FinToGltfConverter().ToGlb(FinReader.Read("TEST", bytes));
+        }
+
+        private static List<JsonObject> JsonNodesNamed(JsonObject json, string name)
+        {
+            return json["nodes"]!
+                .AsArray()
+                .Select(e => e!.AsObject())
+                .Where(e => e["name"]?.GetValue<string>() == name)
+                .ToList();
+        }
+
+        private static int ColliderShape(JsonObject node)
+        {
+            return node["extensions"]!["OMI_physics_body"]!["collider"]!["shape"]!.GetValue<int>();
+        }
+
+        private static JsonArray Shapes(JsonObject json)
+        {
+            return json["extensions"]!["OMI_physics_shape"]!["shapes"]!.AsArray();
+        }
+
+        private static List<string> ExtensionsUsed(JsonObject json)
+        {
+            var used = json["extensionsUsed"]?.AsArray() ?? [];
+
+            return used
+                .Select(e => e!.GetValue<string>())
+                .ToList();
+        }
+
+        [Fact]
+        public void ToGlb_WritesBoxCollider_WhenNodeIsInFinalShapeMode()
+        {
+            // Arrange
+            var bytes = VolumeNode(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", 4, BoxVolume)
+                .EndOfFile()
+                .ToArray();
+
+            // Act
+            var glb = ToGlb(bytes);
+
+            // Assert
+            var json = GlbTestReader.Json(glb);
+            var model = GlbTestReader.Read(glb);
+            var root = Assert.Single(SceneRoot(model).VisualChildren);
+            var collision = Assert.Single(root.VisualChildren);
+            Assert.Equal("Collision0", collision.Name);
+            Assert.Equal(new Vector3(1, 2, 3), collision.LocalTransform.Translation);
+            Assert.Equal(0, ColliderShape(json["nodes"]![collision.LogicalIndex]!.AsObject()));
+            var shape = Assert.Single(Shapes(json))!;
+            Assert.Equal("box", shape["type"]!.GetValue<string>());
+            Assert.Equal([8f, 10f, 12f], shape["box"]!["size"]!.AsArray().Select(e => e!.GetValue<float>()));
+            Assert.Contains("OMI_physics_shape", ExtensionsUsed(json));
+            Assert.Contains("OMI_physics_body", ExtensionsUsed(json));
+        }
+
+        [Fact]
+        public void ToGlb_WritesNoCollider_WhenNodeDescends()
+        {
+            // Arrange
+            var bytes = VolumeNode(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", 2, BoxVolume)
+                .EndOfFile()
+                .ToArray();
+
+            // Act
+            var json = GlbTestReader.Json(ToGlb(bytes));
+
+            // Assert
+            Assert.Empty(JsonNodesNamed(json, "Collision0"));
+            Assert.Null(json["extensions"]?["OMI_physics_shape"]);
+            Assert.DoesNotContain("OMI_physics_shape", ExtensionsUsed(json));
+            Assert.DoesNotContain("OMI_physics_body", ExtensionsUsed(json));
+        }
+
+        [Fact]
+        public void ToGlb_WritesOneColliderPerUnionMember()
+        {
+            // Arrange
+            var bytes = VolumeNode(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", 0,
+                    b => SphereVolume(BoxVolume(b.UInt32(4).UInt32(2))))
+                .EndOfFile()
+                .ToArray();
+
+            // Act
+            var json = GlbTestReader.Json(ToGlb(bytes));
+
+            // Assert
+            var shapes = Shapes(json);
+            Assert.Equal(["box", "sphere"], shapes.Select(e => e!["type"]!.GetValue<string>()));
+            Assert.Equal(0, ColliderShape(Assert.Single(JsonNodesNamed(json, "Collision0"))));
+            Assert.Equal(1, ColliderShape(Assert.Single(JsonNodesNamed(json, "Collision1"))));
+        }
+
+        [Fact]
+        public void ToGlb_WritesSkippedCount_WhenVolumesStayExtras()
+        {
+            // Arrange
+            var bytes = VolumeNode(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", 0,
+                    b => HalfSpaceVolume(BoxVolume(b.UInt32(4).UInt32(2))))
+                .EndOfFile()
+                .ToArray();
+
+            // Act
+            var json = GlbTestReader.Json(ToGlb(bytes));
+
+            // Assert
+            Assert.Single(Shapes(json));
+            Assert.Single(JsonNodesNamed(json, "Collision0"));
+            Assert.Empty(JsonNodesNamed(json, "Collision1"));
+            var root = Assert.Single(JsonNodesNamed(json, "Root"));
+            Assert.Equal(1, root["extras"]!["collisionShapesSkipped"]!.GetValue<int>());
+        }
+
+        [Fact]
+        public void ToGlb_WritesColliderForEveryCopy_WhenBlockIsDuplicated()
+        {
+            // Arrange
+            var builder = Node(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", [0x20, 0x20]);
+            var bytes = VolumeNode(builder, 0x20, "Crate", 6, BoxVolume)
+                .EndOfFile()
+                .ToArray();
+
+            // Act
+            var glb = ToGlb(bytes);
+
+            // Assert
+            var json = GlbTestReader.Json(glb);
+            var model = GlbTestReader.Read(glb);
+            var copies = Assert.Single(SceneRoot(model).VisualChildren).VisualChildren.ToList();
+            Assert.Equal(2, copies.Count);
+            var shapes = copies
+                .Select(e => ColliderShape(json["nodes"]![Assert.Single(e.VisualChildren).LogicalIndex]!.AsObject()))
+                .ToList();
+            Assert.Equal(2, shapes.Distinct().Count());
+            Assert.All(shapes, e => Assert.InRange(e, 0, Shapes(json).Count - 1));
+            Assert.All(copies, e => Assert.Equal("Collision0", Assert.Single(e.VisualChildren).Name));
+        }
+
+        // Consumers count only nodes with extras as the file's own, so the generated nodes must not shift them
+        [Fact]
+        public void ToGlb_WritesNoExtras_OnShapeAndLightNodes()
+        {
+            // Arrange
+            var builder = VolumeNode(new FinStreamBuilder().Header().TopLevel(), 0x10, "Root", 0, BoxVolume, [0x20]);
+            builder = Shape(builder, 0x20, "Box");
+            var bytes = builder.SizedString("NiLight").NiObject(0x50, "Omni01").NiAVObjectFields()
+                .Floats(1, 2, 3, 0, 0, -1).Byte(1).Floats(0.5f, 2, 0.75f)
+                .Floats(0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f)
+                .Floats(100, 1.5f).Byte(1).Int32(2)
+                .Int32(0)
+                .EndOfFile()
+                .ToArray();
+
+            // Act
+            var glb = ToGlb(bytes);
+
+            // Assert
+            var json = GlbTestReader.Json(glb);
+            var model = GlbTestReader.Read(glb);
+            var root = SceneRoot(model).VisualChildren.First();
+            Assert.Equal(["Box", "Collision0"], root.VisualChildren.Select(e => e.Name));
+            var collision = Assert.Single(JsonNodesNamed(json, "Collision0"));
+            var light = Assert.Single(JsonNodesNamed(json, "Light"));
+            Assert.Null(collision["extras"]);
+            Assert.Null(light["extras"]);
         }
     }
 }

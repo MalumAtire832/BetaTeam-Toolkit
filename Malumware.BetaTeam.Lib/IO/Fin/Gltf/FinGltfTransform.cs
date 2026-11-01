@@ -60,6 +60,31 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 0, 0, 0, 1);
         }
 
+        // The smallest rotation taking the unit vector from onto the direction; identity for a zero or non-finite one
+        internal static Quaternion ShortestArc(Vector3 from, Vector3 direction)
+        {
+            if (!IsFinite(direction) || direction.LengthSquared() == 0)
+            {
+                return Quaternion.Identity;
+            }
+
+            var target = Vector3.Normalize(direction);
+            var dot = Vector3.Dot(from, target);
+            if (dot < -1 + 1e-6f)
+            {
+                // Opposite vectors: any axis perpendicular to from will do; Y first, X when from runs along Y
+                var half = Vector3.Cross(from, Vector3.UnitY);
+
+                return Quaternion.CreateFromAxisAngle(
+                    half.LengthSquared() < 1e-6f ? Vector3.UnitX : Vector3.Normalize(half),
+                    MathF.PI);
+            }
+
+            var axis = Vector3.Cross(from, target);
+
+            return Quaternion.Normalize(new Quaternion(axis, 1 + dot));
+        }
+
         private static Quaternion ToQuaternion(Matrix4x4 rotation)
         {
             return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(rotation));

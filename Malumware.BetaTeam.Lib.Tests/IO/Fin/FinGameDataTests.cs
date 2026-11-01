@@ -1,4 +1,5 @@
 using Malumware.BetaTeam.Lib.IO.Fin;
+using Malumware.BetaTeam.Lib.IO.Fin.Animation;
 using Malumware.BetaTeam.Lib.IO.Fin.Blocks;
 using Malumware.BetaTeam.Lib.IO.Pac;
 using Malumware.BetaTeam.Lib.Tests.GameData;
@@ -112,6 +113,58 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
 
             // Assert
             Assert.NotEqual(0, shapes);
+            Assert.Empty(failures);
+        }
+
+        // The engine hands track i to the i-th animated node; skills point into the actor's node and morph lists
+        [GameDataFact]
+        public void SkillPlan_FitsEveryActor()
+        {
+            // Arrange
+            var failures = new List<string>();
+            var skills = 0;
+
+            // Act
+            foreach (var (name, data) in FinFiles())
+            {
+                var file = FinReader.Read(name, data);
+                var actor = file.Objects.OfType<DDActor>().FirstOrDefault(a => a.SharedData.Target is not null);
+                if (actor is null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var nodes = FinSkillPlan.AnimationNodes(actor, actor.SharedData.Target!).Count;
+                    var morphs = file.Objects.OfType<Ni3dsMorphShape>().Count();
+                    foreach (var skill in actor.SharedData.Target!.Skills)
+                    {
+                        skills++;
+                        if (skill.AnimationNodes.Any(index => index >= nodes))
+                        {
+                            failures.Add($"{name}: skill {skill.Name} lists a node past {nodes}");
+                        }
+                        if (skill.OtherAnimations.Any(index => index >= morphs))
+                        {
+                            failures.Add($"{name}: skill {skill.Name} lists another animation past {morphs} morph shapes");
+                        }
+                    }
+                    FinSkillPlan.Build(file);
+                }
+                catch (InvalidDataException e)
+                {
+                    failures.Add($"{name}: {e.Message}");
+                }
+            }
+
+            foreach (var failure in failures)
+            {
+                _output.WriteLine(failure);
+            }
+
+            // Assert
+            Assert.NotEqual(0, skills);
             Assert.Empty(failures);
         }
 

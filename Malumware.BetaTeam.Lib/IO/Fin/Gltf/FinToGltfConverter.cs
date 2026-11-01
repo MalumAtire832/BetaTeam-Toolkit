@@ -20,6 +20,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         private const float MIN_NORMAL_LENGTH = 1e-6f;
         // Four unsigned 16-bit joint indices per vertex
         private const int JOINT_SIZE = 8;
+        // Three floats per morph target position
+        private const int VECTOR3_SIZE = 12;
+        public const string DEFAULT_TEXTURE_URI_PREFIX = "../textures/";
+        private const string GLB_NAME = "model";
+        private const string OMI_PHYSICS_SHAPE = "OMI_physics_shape";
+        private const string OMI_PHYSICS_BODY = "OMI_physics_body";
 
         // By default only the most detailed level of each NiLODNode is written, and none of the flat "LOD_" stand-ins
         // that characters show from afar, so the levels don't overlap
@@ -27,18 +33,43 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         // By default nodes the game loads hidden are left out, with everything below them: effects, glows and lights
         // that the game's code shows when they're needed
         public bool IncludeHidden { get; }
+        // Put in front of each texture's PNG file name; relative to the glb, so models share one texture folder
+        public string TextureUriPrefix { get; }
+        // One glTF animation per skill of the object (see FinGltfAnimations)
+        public bool IncludeAnimations { get; }
 
-        public FinToGltfConverter(bool includeAllLevelsOfDetail = false, bool includeHidden = false)
+        public FinToGltfConverter(bool includeAllLevelsOfDetail = false, bool includeHidden = false,
+            string textureUriPrefix = DEFAULT_TEXTURE_URI_PREFIX, bool includeAnimations = true)
         {
             IncludeAllLevelsOfDetail = includeAllLevelsOfDetail;
             IncludeHidden = includeHidden;
+            TextureUriPrefix = textureUriPrefix;
+            IncludeAnimations = includeAnimations;
         }
 
+        // Textures are written separately (see TgaToPngConverter), so the glb only refers to them: images are
+        // written as satellite files, which SharpGLTF hands to the callback, and only the glb is kept
         public byte[] ToGlb(FinFile file)
         {
-            return ToModel(file)
-                .WriteGLB()
-                .ToArray();
+            var export = CreateExport(file);
+            var model = export.Run();
+            byte[]? glb = null;
+            var context = WriteContext
+                .Create((name, data) =>
+                {
+                    if (name.EndsWith(".glb", StringComparison.Ordinal))
+                    {
+                        glb = data.ToArray();
+                    }
+                }, null)
+                .WithSettingsFrom(new WriteSettings { ImageWriting = ResourceWriteMode.SatelliteFile });
+            context.WriteBinarySchema2(GLB_NAME, model);
+            if (glb is null)
+            {
+                throw new InvalidOperationException("SharpGLTF wrote no glb");
+            }
+
+            return export.Colliders.Count == 0 ? glb : GlbJsonChunk.Rewrite(glb, json => AddColliders(json, export.Colliders));
         }
 
         public void Convert(FinFile file, string outputPath)
@@ -48,7 +79,47 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
         internal ModelRoot ToModel(FinFile file)
         {
-            return new Export(file, IncludeAllLevelsOfDetail, IncludeHidden).Run();
+            return CreateExport(file).Run();
+        }
+
+        private Export CreateExport(FinFile file)
+        {
+            return new Export(file, IncludeAllLevelsOfDetail, IncludeHidden, TextureUriPrefix, IncludeAnimations);
+        }
+
+        // SharpGLTF can't write OMI_physics_shape and OMI_physics_body, so they go into the written JSON: one shapes
+        // list for the file, and on each shape node a collider naming its shape. Godot imports these (it doesn't import
+        // KHR_collision_shapes).
+        private static void AddColliders(JsonObject json, IReadOnlyList<(Node Node, JsonObject Shape)> colliders)
+        {
+            var shapes = new JsonArray();
+            var nodes = json["nodes"]!.AsArray();
+            foreach (var (node, shape) in colliders)
+            {
+                var body = new JsonObject { ["collider"] = new JsonObject { ["shape"] = shapes.Count } };
+                Extensions(nodes[node.LogicalIndex]!.AsObject())[OMI_PHYSICS_BODY] = body;
+                shapes.Add(shape);
+            }
+            Extensions(json)[OMI_PHYSICS_SHAPE] = new JsonObject { ["shapes"] = shapes };
+
+            if (json["extensionsUsed"] is not JsonArray used)
+            {
+                used = new JsonArray();
+                json["extensionsUsed"] = used;
+            }
+            used.Add(OMI_PHYSICS_SHAPE);
+            used.Add(OMI_PHYSICS_BODY);
+        }
+
+        private static JsonObject Extensions(JsonObject owner)
+        {
+            if (owner["extensions"] is not JsonObject extensions)
+            {
+                extensions = new JsonObject();
+                owner["extensions"] = extensions;
+            }
+
+            return extensions;
         }
 
         internal static string Describe(NiObject block)
@@ -62,29 +133,39 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             private readonly FinFile _file;
             private readonly bool _includeAllLevelsOfDetail;
             private readonly bool _includeHidden;
+            private readonly bool _includeAnimations;
             private readonly ModelRoot _model = ModelRoot.CreateModel();
             private readonly FinGltfExtrasBuilder _extras = new();
-            private readonly Dictionary<NiTriBasedGeom, Mesh?> _meshes = new(ReferenceEqualityComparer.Instance);
+            private readonly FinGltfMaterials _materials;
+            // A shape reached through parents with different properties needs a mesh per material
+            private readonly Dictionary<(NiTriBasedGeom, Material), Mesh?> _meshes = new();
             private readonly HashSet<NiObject> _ancestors = new(ReferenceEqualityComparer.Instance);
             private readonly Dictionary<NiAVObject, NiNode> _parents = new(ReferenceEqualityComparer.Instance);
-            // A block listed as a child in two places gets two nodes; bones are joined to the first
-            private readonly Dictionary<NiAVObject, Node> _nodes = new(ReferenceEqualityComparer.Instance);
+            // A block listed as a child in two places gets two nodes; bones are joined to the first, animations drive all
+            private readonly Dictionary<NiAVObject, List<Node>> _nodes = new(ReferenceEqualityComparer.Instance);
             private readonly Dictionary<Ni3dsSkin, FinGltfSkin> _skins = new(ReferenceEqualityComparer.Instance);
             private readonly List<(Node Node, FinGltfSkin Skin)> _skinnedNodes = [];
             private readonly HashSet<NiAVObject> _standIns = new(ReferenceEqualityComparer.Instance);
-            private Material? _material;
+            private readonly List<(Node Node, JsonObject Shape)> _colliders = [];
             private int _nodeCount;
 
-            public Export(FinFile file, bool includeAllLevelsOfDetail, bool includeHidden)
+            // Every shape node with the OMI shape it holds, in the order they were created
+            public IReadOnlyList<(Node Node, JsonObject Shape)> Colliders => _colliders;
+
+            public Export(FinFile file, bool includeAllLevelsOfDetail, bool includeHidden, string textureUriPrefix,
+                bool includeAnimations)
             {
                 _file = file;
                 _includeAllLevelsOfDetail = includeAllLevelsOfDetail;
                 _includeHidden = includeHidden;
+                _includeAnimations = includeAnimations;
+                _materials = new FinGltfMaterials(_model, _extras, textureUriPrefix);
             }
 
             public ModelRoot Run()
             {
                 var scene = _model.UseScene(_file.Name);
+                _model.DefaultScene = scene;
                 var root = scene.CreateNode(_file.Name);
                 root.LocalTransform = new AffineTransform(null, FinGltfTransform.ZUpToYUp, null);
                 root.Extras = BuildRootExtras();
@@ -96,11 +177,26 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
                 foreach (var block in SceneRoots().Where(IsExported))
                 {
-                    AddNode(root, block, 0);
+                    AddNode(root, block, [], 0);
                 }
                 BindSkins();
+                if (_includeAnimations)
+                {
+                    var flipBooks = FinGltfAnimations.Write(_model, _file, NodesOf, _materials);
+                    if (flipBooks.Count > 0)
+                    {
+                        var extras = BuildRootExtras();
+                        extras["flipbooks"] = flipBooks;
+                        root.Extras = extras;
+                    }
+                }
 
                 return _model;
+            }
+
+            private IReadOnlyList<Node> NodesOf(NiAVObject block)
+            {
+                return _nodes.TryGetValue(block, out var nodes) ? nodes : [];
             }
 
             private void FindParents()
@@ -186,8 +282,9 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 };
             }
 
-            // lodLevel matches a child of a NiLODNode to its entry in the node's Ranges
-            private void AddNode(Node parent, NiAVObject block, int depth, int? lodLevel = null)
+            // inherited holds the properties of the block's ancestors; lodLevel matches a child of a NiLODNode to its
+            // entry in the node's Ranges
+            private void AddNode(Node parent, NiAVObject block, IReadOnlyList<NiProperty> inherited, int depth, int? lodLevel = null)
             {
                 if (depth >= MAX_DEPTH)
                 {
@@ -197,23 +294,26 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     throw new InvalidDataException($"{Describe(block)} is its own descendant");
                 }
-                if (++_nodeCount > MAX_NODES)
-                {
-                    throw new InvalidDataException($"The scene expands to more than {MAX_NODES} nodes");
-                }
+                CountNode();
 
                 var node = parent.CreateNode(block.Name ?? block.ClassName);
                 node.LocalTransform = FinGltfTransform.ToLocalTransform(block);
-                _nodes.TryAdd(block, node);
+                if (!_nodes.TryGetValue(block, out var copies))
+                {
+                    copies = [];
+                    _nodes[block] = copies;
+                }
+                copies.Add(node);
                 var extras = _extras.BuildNode(block);
                 if (lodLevel is not null)
                 {
                     extras["lodLevel"] = lodLevel;
                 }
 
+                var properties = FinGltfMaterials.Inherit(inherited, block);
                 if (block is NiTriBasedGeom geometry)
                 {
-                    node.Mesh = GetMesh(geometry);
+                    node.Mesh = GetMesh(geometry, _materials.Get(properties, geometry.Normals is null));
                     if (node.Mesh is not null && GetSkin(geometry) is { } skin)
                     {
                         _skinnedNodes.Add((node, skin));
@@ -227,12 +327,51 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     _ancestors.Add(block);
                     foreach (var (index, child) in ExportedChildren(parentBlock))
                     {
-                        AddNode(node, child, depth + 1, parentBlock is NiLODNode ? index : null);
+                        AddNode(node, child, properties, depth + 1, parentBlock is NiLODNode ? index : null);
                     }
                     _ancestors.Remove(block);
                 }
 
+                AddCollisionShapes(node, block, extras);
+
+                if (block is NiLight light)
+                {
+                    FinGltfLights.Attach(_model, node, light);
+                }
+
                 node.Extras = extras;
+            }
+
+            private void CountNode()
+            {
+                if (++_nodeCount > MAX_NODES)
+                {
+                    throw new InvalidDataException($"The scene expands to more than {MAX_NODES} nodes");
+                }
+            }
+
+            // In the modes where the engine collides with a node's bounding volume instead of what's below it, each
+            // volume Godot can hold becomes a child node with a collider. The children come after the original ones
+            // and carry no extras, so consumers counting the original nodes skip them.
+            private void AddCollisionShapes(Node node, NiAVObject block, JsonObject extras)
+            {
+                if (block.BoundingVolume is not { } volume || !FinCollisionShapes.IsFinalShapeMode(block.CollisionPropagate))
+                {
+                    return;
+                }
+
+                var (shapes, skipped) = FinCollisionShapes.FromVolume(volume);
+                for (var i = 0; i < shapes.Count; i++)
+                {
+                    CountNode();
+                    var child = node.CreateNode($"Collision{i}");
+                    child.LocalTransform = new AffineTransform(Vector3.One, shapes[i].Rotation, shapes[i].Translation);
+                    _colliders.Add((child, shapes[i].Shape));
+                }
+                if (skipped > 0)
+                {
+                    extras["collisionShapesSkipped"] = skipped;
+                }
             }
 
             // Runs once every node exists, because a skin can come before its bones in the tree. Binding at the current
@@ -244,13 +383,13 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     var joints = new Node[skin.Bones.Count];
                     for (var i = 0; i < joints.Length; i++)
                     {
-                        if (!_nodes.TryGetValue(skin.Bones[i], out var joint))
+                        if (!_nodes.TryGetValue(skin.Bones[i], out var copies))
                         {
                             throw new InvalidDataException(
                                 $"{Describe(skin.Bones[i])} moves a skinned mesh but isn't part of the exported scene"
                             );
                         }
-                        joints[i] = joint;
+                        joints[i] = copies[0];
                     }
 
                     node.Skin = _model.CreateSkin(node.Name);
@@ -296,12 +435,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 return best;
             }
 
-            private Mesh? GetMesh(NiTriBasedGeom geometry)
+            private Mesh? GetMesh(NiTriBasedGeom geometry, Material material)
             {
-                if (!_meshes.TryGetValue(geometry, out var mesh))
+                if (!_meshes.TryGetValue((geometry, material), out var mesh))
                 {
-                    mesh = CreateMesh(geometry);
-                    _meshes[geometry] = mesh;
+                    mesh = CreateMesh(geometry, material);
+                    _meshes[(geometry, material)] = mesh;
                 }
 
                 return mesh;
@@ -322,7 +461,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 return skin;
             }
 
-            private Mesh? CreateMesh(NiTriBasedGeom geometry)
+            private Mesh? CreateMesh(NiTriBasedGeom geometry, Material material)
             {
                 if (geometry.Vertices is not { Length: > 0 })
                 {
@@ -330,7 +469,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 }
 
                 var skin = GetSkin(geometry);
-                var vertices = skin?.Vertices ?? geometry.Vertices;
+                var morphTargets = MorphTargets(geometry);
+                var vertices = skin?.Vertices ?? morphTargets?[0] ?? geometry.Vertices;
                 var mesh = _model.CreateMesh(geometry.Name ?? geometry.ClassName);
                 var primitive = mesh
                     .CreatePrimitive()
@@ -350,7 +490,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 if (geometry.Colors is { } colors)
                 {
                     var values = colors
-                        .Select(e => new Vector4(e.R, e.G, e.B, e.A))
+                        .Select(e => FinGltfColor.ToLinear(e.R, e.G, e.B, e.A))
                         .ToArray();
                     primitive.WithVertexAccessor("COLOR_0", RequireFinite(geometry, "colour", values));
                 }
@@ -368,7 +508,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     primitive
                         .WithIndicesAccessor(PrimitiveType.TRIANGLES, TriangleIndices(shape))
-                        .WithMaterial(GetMaterial());
+                        .WithMaterial(material);
                 }
                 else
                 {
@@ -376,7 +516,53 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     primitive.WithIndicesAutomatic(PrimitiveType.POINTS);
                 }
 
+                if (morphTargets is not null)
+                {
+                    AddMorphTargets(mesh, primitive, (Ni3dsMorphShape)geometry, morphTargets);
+                }
+
                 return mesh;
+            }
+
+            // A morph shape's targets, when it has any and they fit its vertex count. The engine draws a blend of them,
+            // never the stored vertices.
+            private static IReadOnlyList<Vector3[]>? MorphTargets(NiTriBasedGeom geometry)
+            {
+                if (geometry is not Ni3dsMorphShape { Targets.Count: > 0 } morph
+                    || morph.Targets.Any(target => target.Length != morph.VertexCount))
+                {
+                    return null;
+                }
+
+                return morph.Targets;
+            }
+
+            // Ni3dsMorphShape::AnimateUpdate: target 0 is the base and every other target counts as its difference from
+            // target 0, so glTF morph targets are those differences, weighted like the engine's targets 1 and up
+            private void AddMorphTargets(Mesh mesh, MeshPrimitive primitive, Ni3dsMorphShape morph,
+                IReadOnlyList<Vector3[]> targets)
+            {
+                for (var i = 1; i < targets.Count; i++)
+                {
+                    var deltas = targets[i]
+                        .Select((vertex, index) => vertex - targets[0][index])
+                        .ToArray();
+                    var accessor = _model.CreateAccessor($"{mesh.Name} target {i}");
+                    var size = deltas.Length * VECTOR3_SIZE;
+                    var view = _model.UseBufferView(new byte[size], 0, size, VECTOR3_SIZE, BufferMode.ARRAY_BUFFER);
+                    accessor.SetVertexData(view, 0, deltas.Length, new AttributeFormat(DimensionType.VEC3, EncodingType.FLOAT));
+                    var values = accessor.AsVector3Array();
+                    var finite = RequireFinite(morph, "morph target", deltas);
+                    for (var index = 0; index < finite.Length; index++)
+                    {
+                        values[index] = finite[index];
+                    }
+                    // glTF wants the bounds of every position accessor, morph targets included
+                    accessor.UpdateBounds();
+                    primitive.SetMorphTargetAccessors(i - 1, new Dictionary<string, Accessor> { ["POSITION"] = accessor });
+                }
+
+                mesh.SetMorphWeights(FinGltfAnimations.RestMorphWeights(morph, targets.Count));
             }
 
             // glTF requires joint indices as unsigned integers; WithVertexAccessor would store these vectors as floats
@@ -475,15 +661,6 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     extras["NonFiniteTextureCoordinates"] = count;
                 }
-            }
-
-            // Textures and materials aren't converted yet, so every shape gets the same plain white, non-metallic one.
-            // Vertex colours still show, because glTF multiplies them with the base colour.
-            private Material GetMaterial()
-            {
-                return _material ??= _model
-                    .CreateMaterial("Default")
-                    .WithPBRMetallicRoughness(Vector4.One, null, null, 0, 1);
             }
 
             private static T[] RequireFinite<T>(NiObject block, string what, T[] values)

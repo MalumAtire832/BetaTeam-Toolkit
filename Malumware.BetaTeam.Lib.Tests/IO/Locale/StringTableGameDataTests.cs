@@ -56,6 +56,35 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Locale
             Assert.Empty(duplicates);
         }
 
+        [GameDataFact]
+        public void ToPo_WritesEveryKey_ForTheShippedTables()
+        {
+            // Arrange
+            var reader = new PacArchiveReader();
+            var tables = new List<StringTable>();
+            foreach (var archive in LocaleArchives(reader).Where(a => a.FileName.Contains("Locale_en", StringComparison.OrdinalIgnoreCase)))
+            {
+                foreach (var (entry, data) in archive.Entries)
+                {
+                    var name = Path.GetFileNameWithoutExtension(entry.FileName);
+                    if (entry.FileName.EndsWith(".TXT", StringComparison.OrdinalIgnoreCase)
+                        && !name.Equals("KBD_EN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        tables.Add(StringTableReader.Read(name, data));
+                    }
+                }
+            }
+
+            // Act
+            var po = GettextWriter.ToPo(tables, "en");
+
+            // Assert
+            var msgids = po
+                .Split('\n')
+                .Count(line => line.StartsWith("msgid \"") && line != "msgid \"\"");
+            Assert.Equal(500, msgids);
+        }
+
         private static IEnumerable<PacArchive> LocaleArchives(PacArchiveReader reader)
         {
             return GameDataPaths

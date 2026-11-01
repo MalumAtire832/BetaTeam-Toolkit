@@ -11,7 +11,7 @@ are custom to Digital Domain.
 | Project                        | Purpose                                                      |
 |--------------------------------|--------------------------------------------------------------|
 | `Malumware.Common`             | Shared helpers (e.g. `BinaryReaderExtensions`)               |
-| `Malumware.BetaTeam.Lib`       | Format parsers, readers and converters, under `IO/<Format>/` |
+| `Malumware.BetaTeam.Lib`       | Format parsers, readers and converters, under `IO/<Format>/`; exports for other projects under `Export/` (`GodotExport`, used by the Godot port through `betateam export godot`) |
 | `Malumware.BetaTeam.Lib.Tests` | xUnit tests, mirroring the `Lib` folder structure            |
 | `Malumware.BetaTeam.Cli`       | `betateam` CLI built on Spectre.Console.Cli                  |
 
@@ -128,8 +128,8 @@ Rules for format work:
 | PAC        | Verified and documented (`docs/formats/pac.md`)                                              |
 | DDS audio  | Verified and documented (`docs/formats/dds-audio.md`)                                        |
 | Locale TXT | Verified and documented (`docs/formats/string-tables.md`)                                    |
-| TGA        | Standard Truevision TGA                                                                      |
-| FIN models | Reading verified and documented (`docs/formats/fin.md`); every shipped file parses. Inspect with `betateam fin dump`. Export to glTF for Blender with `betateam convert fin gltf` (#6; skinned meshes are bound to their bones), NIF for NifSkope (#5). |
+| TGA        | Verified and documented (`docs/formats/tga.md`): the engine's alpha and greyscale rules       |
+| FIN models | Reading verified and documented (`docs/formats/fin.md`); every shipped file parses. Inspect with `betateam fin dump`. Export to glTF for Blender with `betateam convert fin gltf` (#6; skinned meshes are bound to their bones; materials from the render properties, textures referenced as `../textures/<name>.png`), NIF for NifSkope (#5). |
 | DDF, PUZ   | Not yet investigated                                                                         |
 
 ## Git and pull requests
