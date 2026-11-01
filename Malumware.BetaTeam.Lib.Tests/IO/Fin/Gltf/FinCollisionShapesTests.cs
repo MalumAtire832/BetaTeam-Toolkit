@@ -137,6 +137,20 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         }
 
         [Fact]
+        public void FromVolume_MapsYOntoMinusY_WhenCapsuleRunsDownMinusY()
+        {
+            // Arrange
+            var volume = ReadVolume(b => b.UInt32(2).Floats(0, 0, 0, 0, -10, 0, 2).Byte(0));
+
+            // Act
+            var (shapes, _) = FinCollisionShapes.FromVolume(volume);
+
+            // Assert
+            var shape = Assert.Single(shapes);
+            Assert.True(Vector3.Distance(Vector3.Transform(Vector3.UnitY, shape.Rotation), -Vector3.UnitY) < EPSILON);
+        }
+
+        [Fact]
         public void FromVolume_WritesSphere_WhenCapsuleSegmentIsZero()
         {
             // Arrange

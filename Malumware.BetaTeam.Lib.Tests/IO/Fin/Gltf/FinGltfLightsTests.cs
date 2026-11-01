@@ -105,6 +105,21 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
         }
 
         [Fact]
+        public void Attach_TurnsHalfTurnAboutX_WhenDirectionPointsUpPlusZ()
+        {
+            // Arrange
+            var bytes = Light(1, location: [0, 0, 0], direction: [0, 0, 1]);
+
+            // Act
+            var (_, model) = Convert(bytes);
+
+            // Assert
+            var expected = Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI);
+            var rotation = LightNode(model).LocalTransform.Rotation;
+            Assert.True(MathF.Abs(Quaternion.Dot(expected, rotation)) > 1 - 1e-5f);
+        }
+
+        [Fact]
         public void Attach_WritesSpotCone_WhenLightTypeIsThree()
         {
             // Arrange

@@ -72,10 +72,12 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             var dot = Vector3.Dot(from, target);
             if (dot < -1 + 1e-6f)
             {
-                // Opposite vectors: any axis perpendicular to from will do
-                var perpendicular = MathF.Abs(from.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
+                // Opposite vectors: any axis perpendicular to from will do; Y first, X when from runs along Y
+                var half = Vector3.Cross(from, Vector3.UnitY);
 
-                return Quaternion.CreateFromAxisAngle(Vector3.Normalize(Vector3.Cross(from, perpendicular)), MathF.PI);
+                return Quaternion.CreateFromAxisAngle(
+                    half.LengthSquared() < 1e-6f ? Vector3.UnitX : Vector3.Normalize(half),
+                    MathF.PI);
             }
 
             var axis = Vector3.Cross(from, target);
