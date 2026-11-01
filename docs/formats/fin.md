@@ -68,8 +68,9 @@ Blender can import:
   capsule of the volume (every member of a union), placed and turned where the volume is. Each holds an
   `OMI_physics_body` collider naming its shape in the file's `OMI_physics_shape` list, so an importer such as Godot
   makes a static body of it. Volumes with no such shape stay in the extras only, counted on the object's node as
-  `collisionShapesSkipped`: inverted volumes, half spaces, intersections, lozenges and degenerate shapes. The OMI
-  extensions are used rather than `KHR_collision_shapes` because Godot 4.7 imports only these. Objects in the other
+  `collisionShapesSkipped`: inverted volumes, half spaces, intersections, lozenges and degenerate shapes. The Godot
+  port turns the volumes kept as extras into shapes itself. The OMI extensions are used rather than
+  `KHR_collision_shapes` because Godot 4.7.2 imports only these. Objects in the other
   modes get no collider; for them the engine tests the triangles below, which an importer can generate from the
   meshes.
 - The generated `Light` and `Collision` nodes carry no extras, so every node with extras is one of the file's
