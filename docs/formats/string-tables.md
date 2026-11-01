@@ -101,6 +101,8 @@ The export writes the tables as a gettext PO file (and a POT template) for Godot
    quoted line per value line, each but the last ending in `\n`. The POT has an empty `msgstr` everywhere.
 5. Inside quotes, `\`, `"` and tab are escaped. A value with any other control character is rejected with an
    `InvalidDataException` naming the table and key, so nothing unprintable reaches a PO file silently.
+6. An empty value becomes an empty `msgstr`, which gettext tools (and Godot's `tr()`) treat as untranslated, returning
+   the key.
 
 `KBD_EN` is left out of the export (the export decides that, not the writer): its values are Windows virtual-key
 codes (`\x1B`), not text.
