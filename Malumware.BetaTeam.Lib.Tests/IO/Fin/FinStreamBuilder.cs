@@ -111,6 +111,22 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin
                 .UInt32(0);
         }
 
+        // The NiAVObject part with a collision propagate mode and a bounding volume, which writeVolume writes from its
+        // type on
+        public FinStreamBuilder NiAVObjectFields(uint collisionPropagate, Func<FinStreamBuilder, FinStreamBuilder> writeVolume)
+        {
+            var builder = Byte(0)
+                .Floats(0, 0, 0)
+                .Floats(1, 0, 0, 0, 1, 0, 0, 0, 1)
+                .Floats(1)
+                .Floats(0, 0, 0)
+                .Refs()
+                .UInt32(collisionPropagate)
+                .UInt32(1);
+
+            return writeVolume(builder);
+        }
+
         // The NiNode part after NiAVObject, with default sorting and visual object set
         public FinStreamBuilder NiNodeFields(uint[] children, uint[] effects)
         {

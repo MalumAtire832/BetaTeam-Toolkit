@@ -15,7 +15,10 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Blocks
         public Vector3 Velocity { get; private set; }
         public IReadOnlyList<FinRef<NiProperty>> Properties { get; private set; } = [];
 
-        // The engine's PropagateMode enum (GetCollisionPropagate); which number means what isn't confirmed yet
+        // The engine's PropagateMode enum (GetCollisionPropagate): how collision tests treat this object. 0, 4 and 6
+        // collide with its bounding volume as the final shape; 1, 2, 5 and 7 descend, so geometry below collides with
+        // its triangles; 3 doesn't collide with anything in the subtree. 4 and 5 don't collide while the object is
+        // hidden (AppCulled); hidden objects in the other modes still collide.
         public uint CollisionPropagate { get; private set; }
 
         // Collision shape, stored inline

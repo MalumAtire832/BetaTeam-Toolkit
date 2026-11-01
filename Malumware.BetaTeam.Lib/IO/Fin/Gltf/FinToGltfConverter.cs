@@ -24,6 +24,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         private const int VECTOR3_SIZE = 12;
         public const string DEFAULT_TEXTURE_URI_PREFIX = "../textures/";
         private const string GLB_NAME = "model";
+        private const string OMI_PHYSICS_SHAPE = "OMI_physics_shape";
+        private const string OMI_PHYSICS_BODY = "OMI_physics_body";
 
         // By default only the most detailed level of each NiLODNode is written, and none of the flat "LOD_" stand-ins
         // that characters show from afar, so the levels don't overlap
@@ -49,6 +51,8 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
         // written as satellite files, which SharpGLTF hands to the callback, and only the glb is kept
         public byte[] ToGlb(FinFile file)
         {
+            var export = CreateExport(file);
+            var model = export.Run();
             byte[]? glb = null;
             var context = WriteContext
                 .Create((name, data) =>
@@ -59,9 +63,13 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     }
                 }, null)
                 .WithSettingsFrom(new WriteSettings { ImageWriting = ResourceWriteMode.SatelliteFile });
-            context.WriteBinarySchema2(GLB_NAME, ToModel(file));
+            context.WriteBinarySchema2(GLB_NAME, model);
+            if (glb is null)
+            {
+                throw new InvalidOperationException("SharpGLTF wrote no glb");
+            }
 
-            return glb ?? throw new InvalidOperationException("SharpGLTF wrote no glb");
+            return export.Colliders.Count == 0 ? glb : GlbJsonChunk.Rewrite(glb, json => AddColliders(json, export.Colliders));
         }
 
         public void Convert(FinFile file, string outputPath)
@@ -71,7 +79,47 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
         internal ModelRoot ToModel(FinFile file)
         {
-            return new Export(file, IncludeAllLevelsOfDetail, IncludeHidden, TextureUriPrefix, IncludeAnimations).Run();
+            return CreateExport(file).Run();
+        }
+
+        private Export CreateExport(FinFile file)
+        {
+            return new Export(file, IncludeAllLevelsOfDetail, IncludeHidden, TextureUriPrefix, IncludeAnimations);
+        }
+
+        // SharpGLTF can't write OMI_physics_shape and OMI_physics_body, so they go into the written JSON: one shapes
+        // list for the file, and on each shape node a collider naming its shape. Godot imports these (it doesn't import
+        // KHR_collision_shapes).
+        private static void AddColliders(JsonObject json, IReadOnlyList<(Node Node, JsonObject Shape)> colliders)
+        {
+            var shapes = new JsonArray();
+            var nodes = json["nodes"]!.AsArray();
+            foreach (var (node, shape) in colliders)
+            {
+                var body = new JsonObject { ["collider"] = new JsonObject { ["shape"] = shapes.Count } };
+                Extensions(nodes[node.LogicalIndex]!.AsObject())[OMI_PHYSICS_BODY] = body;
+                shapes.Add(shape);
+            }
+            Extensions(json)[OMI_PHYSICS_SHAPE] = new JsonObject { ["shapes"] = shapes };
+
+            if (json["extensionsUsed"] is not JsonArray used)
+            {
+                used = new JsonArray();
+                json["extensionsUsed"] = used;
+            }
+            used.Add(OMI_PHYSICS_SHAPE);
+            used.Add(OMI_PHYSICS_BODY);
+        }
+
+        private static JsonObject Extensions(JsonObject owner)
+        {
+            if (owner["extensions"] is not JsonObject extensions)
+            {
+                extensions = new JsonObject();
+                owner["extensions"] = extensions;
+            }
+
+            return extensions;
         }
 
         internal static string Describe(NiObject block)
@@ -98,7 +146,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
             private readonly Dictionary<Ni3dsSkin, FinGltfSkin> _skins = new(ReferenceEqualityComparer.Instance);
             private readonly List<(Node Node, FinGltfSkin Skin)> _skinnedNodes = [];
             private readonly HashSet<NiAVObject> _standIns = new(ReferenceEqualityComparer.Instance);
+            private readonly List<(Node Node, JsonObject Shape)> _colliders = [];
             private int _nodeCount;
+
+            // Every shape node with the OMI shape it holds, in the order they were created
+            public IReadOnlyList<(Node Node, JsonObject Shape)> Colliders => _colliders;
 
             public Export(FinFile file, bool includeAllLevelsOfDetail, bool includeHidden, string textureUriPrefix,
                 bool includeAnimations)
@@ -242,10 +294,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                 {
                     throw new InvalidDataException($"{Describe(block)} is its own descendant");
                 }
-                if (++_nodeCount > MAX_NODES)
-                {
-                    throw new InvalidDataException($"The scene expands to more than {MAX_NODES} nodes");
-                }
+                CountNode();
 
                 var node = parent.CreateNode(block.Name ?? block.ClassName);
                 node.LocalTransform = FinGltfTransform.ToLocalTransform(block);
@@ -283,12 +332,46 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     _ancestors.Remove(block);
                 }
 
+                AddCollisionShapes(node, block, extras);
+
                 if (block is NiLight light)
                 {
                     FinGltfLights.Attach(_model, node, light);
                 }
 
                 node.Extras = extras;
+            }
+
+            private void CountNode()
+            {
+                if (++_nodeCount > MAX_NODES)
+                {
+                    throw new InvalidDataException($"The scene expands to more than {MAX_NODES} nodes");
+                }
+            }
+
+            // In the modes where the engine collides with a node's bounding volume instead of what's below it, each
+            // volume Godot can hold becomes a child node with a collider. The children come after the original ones
+            // and carry no extras, so consumers counting the original nodes skip them.
+            private void AddCollisionShapes(Node node, NiAVObject block, JsonObject extras)
+            {
+                if (block.BoundingVolume is not { } volume || !FinCollisionShapes.IsFinalShapeMode(block.CollisionPropagate))
+                {
+                    return;
+                }
+
+                var (shapes, skipped) = FinCollisionShapes.FromVolume(volume);
+                for (var i = 0; i < shapes.Count; i++)
+                {
+                    CountNode();
+                    var child = node.CreateNode($"Collision{i}");
+                    child.LocalTransform = new AffineTransform(Vector3.One, shapes[i].Rotation, shapes[i].Translation);
+                    _colliders.Add((child, shapes[i].Shape));
+                }
+                if (skipped > 0)
+                {
+                    extras["collisionShapesSkipped"] = skipped;
+                }
             }
 
             // Runs once every node exists, because a skin can come before its bones in the tree. Binding at the current

@@ -58,7 +58,22 @@ Blender can import:
   importer reads, so they then show as visible. The flat `LOD_` stand-ins aren't marked this way: the game hides
   them while it runs.
 - Lights aren't part of the tree (see [NiLight](#nilight)), so they are placed under the root as empty nodes with
-  their own transform.
+  their own transform. A directional, point or spot light also gets a child node `Light` holding a
+  `KHR_lights_punctual` light: its diffuse colour (converted to linear like material colours) with the dimmer as
+  intensity, pointing along the light's direction, and for a spotlight the spot angle as the outer cone. The fade with
+  distance has no glTF equivalent, so no range is written; the original values stay in the light node's extras.
+  Ambient lights have no glTF light.
+- An object whose [collision propagate mode](#collision-propagate-modes) makes its bounding volume the final shape
+  (`0`, `4`, `6`) gets a child node `Collision0`, `Collision1`, … after its own children for each box, sphere and
+  capsule of the volume (every member of a union), placed and turned where the volume is. Each holds an
+  `OMI_physics_body` collider naming its shape in the file's `OMI_physics_shape` list, so an importer such as Godot
+  makes a static body of it. Volumes with no such shape stay in the extras only, counted on the object's node as
+  `collisionShapesSkipped`: inverted volumes, half spaces, intersections, lozenges and degenerate shapes. The OMI
+  extensions are used rather than `KHR_collision_shapes` because Godot 4.7 imports only these. Objects in the other
+  modes get no collider; for them the engine tests the triangles below, which an importer can generate from the
+  meshes.
+- The generated `Light` and `Collision` nodes carry no extras, so every node with extras is one of the file's
+  objects.
 - Every other field of an object goes into its node's *extras*, which Blender shows under *Object Properties →
   Custom Properties*: names, flags, bounding volumes, extra data, and its properties written out in full. Blocks
   outside the tree, such as `DDActorSharedData` and texture animations, are in the root node's `blocks`, keyed by
@@ -230,7 +245,7 @@ Parent of everything that has a place in the scene: nodes, shapes, lights.
 | `f32`     | scale               | Uniform scale relative to the parent                                           |
 | `vec3`    | velocity            | Local velocity (engine: `GetLocalVelocity`)                                    |
 | `link[]`  | properties          | Render properties (material, texture, alpha, ...) that apply to this object and everything below it |
-| `u32`     | collision propagate | How collision tests treat this object's children (engine: `GetCollisionPropagate`). Which value means what hasn't been confirmed |
+| `u32`     | collision propagate | How collision tests treat this object and its children (engine: `GetCollisionPropagate`), see [Collision propagate modes](#collision-propagate-modes) |
 | `u32`     | has bounding volume | Non-zero if a collision shape follows, see [Bounding volumes](#bounding-volumes) |
 
 The transform is local: an object's position, rotation and scale are relative to its parent node, and vertices are
@@ -357,16 +372,16 @@ getters (`GetLocation`, `GetDimmer`, `GetAttenuationCurve`, ...).
 | `vec3`      | location             | Position                                                              |
 | `vec3`      | direction            | Direction, for directional lights and spotlights                      |
 | `bool`      | light switch         | Whether the light is on                                               |
-| `f32`       | spot angle           | Cone angle of a spotlight                                             |
+| `f32`       | spot angle           | Cone angle of a spotlight, in degrees                                 |
 | `f32`       | spot exponent        | How quickly a spotlight fades towards the edge of its cone            |
-| `f32`       | dimmer               | Brightness multiplier                                                 |
+| `f32`       | dimmer               | Brightness multiplier; the colours are multiplied by it               |
 | 3 × `f32`   | ambient colour       | Red, green, blue                                                      |
 | 3 × `f32`   | diffuse colour       | Red, green, blue                                                      |
 | 3 × `f32`   | specular colour      | Red, green, blue                                                      |
 | `f32`       | attenuation distance | Distance over which the light fades                                  |
 | `f32`       | attenuation curve    | Shape of the fade                                                     |
 | `bool`      | attenuation          | Whether the light fades with distance at all                         |
-| `i32`       | light type           | Kind of light. Shipped files use `1` and `2`; not mapped to names yet |
+| `i32`       | light type           | Kind of light: `0` ambient, `1` directional, `2` point, `3` spot. Shipped files use `1` and `2` |
 | `i32` + count × `u32` | illuminated nodes | Link IDs of the nodes it lights. The game reads and ignores them: the nodes' effect lists are what count |
 
 ### Bounding volumes
@@ -381,13 +396,31 @@ Some objects carry a collision shape. It is stored inside the object, right afte
 | 2    | capsule       | `vec3` origin, `vec3` direction, `f32` radius, `bool` inverted                  |
 | 3    | lozenge       | `vec3` origin, two `vec3` edges of a parallelogram, `f32` radius                |
 | 4    | union         | `u32` count, then that many nested volumes. Inside any of them                  |
-| 5    | half space    | A plane: `vec3` normal and `f32` constant. Everything on one side               |
+| 5    | half space    | A plane: `vec3` normal *n* and `f32` constant *c*. Solid where *n · p ≤ c*      |
 | 6    | intersection  | `u32` count, then that many nested volumes. Inside all of them                  |
 
 Half spaces and intersections are Digital Domain's additions. An inverted shape collides from the inside, for
 example to keep something within an area. The types a file can use are registered by the collision library, so a
 type outside 0–6 can't be read. Shipped files give 324 nodes a volume: mostly boxes and unions, then spheres,
 capsules and a few intersections.
+
+The box's axes are unit vectors and its extents half sizes along them. The capsule is the segment from the origin to
+origin + direction, widened by the radius.
+
+#### Collision propagate modes
+
+Whether the engine collides with an object's bounding volume, with the triangles below it or with nothing depends on
+its collision propagate mode:
+
+| Mode          | Collision                                                                   |
+|---------------|-----------------------------------------------------------------------------|
+| `0`, `6`      | The object's bounding volume is the final shape; nothing below it is tested |
+| `1`, `2`, `7` | Descends: the children are tested, and geometry collides with its triangles |
+| `3`           | Nothing in the subtree collides                                             |
+| `4`           | As `0`, but not while the object is hidden (app culled)                     |
+| `5`           | As `1`, but not while the object is hidden (app culled)                     |
+
+Hidden objects in the other modes still collide.
 
 ## Properties
 

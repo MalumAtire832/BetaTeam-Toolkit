@@ -187,6 +187,79 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             Assert.NotEmpty(lights);
         }
 
+        // As exported for the port; AGENTS.md of the port states its 4 × 4 studs, which the port's tests check
+        [GameDataFact]
+        public void DirectionTile_HasOneBoxCollider()
+        {
+            // Arrange
+            var (name, data) = FinGameDataTests
+                .FinFiles()
+                .First(e => e.Name.Equals("U0179", StringComparison.OrdinalIgnoreCase));
+            var file = FinReader.Read(name, data);
+
+            // Act
+            var glb = new FinToGltfConverter(true, true).ToGlb(file);
+
+            // Assert
+            var shapes = GlbTestReader.Json(glb)["extensions"]?["OMI_physics_shape"]?["shapes"]?.AsArray();
+            Assert.NotNull(shapes);
+            var shape = Assert.Single(shapes);
+            Assert.Equal("box", shape!["type"]!.GetValue<string>());
+        }
+
+        // As exported for the port: every model converts, and every collider names a shape of its own glb
+        [GameDataFact]
+        public void EveryModel_Converts_WithValidColliderIndices()
+        {
+            // Arrange
+            var failures = new List<string>();
+            var files = FinGameDataTests
+                .FinFiles()
+                .ToList();
+            var colliders = 0;
+
+            // Act
+            foreach (var (name, data) in files)
+            {
+                try
+                {
+                    var glb = new FinToGltfConverter(true, true).ToGlb(FinReader.Read(name, data));
+                    GlbTestReader.Read(glb);
+                    var json = GlbTestReader.Json(glb);
+                    var shapeCount = json["extensions"]?["OMI_physics_shape"]?["shapes"]?.AsArray().Count ?? 0;
+                    var nodes = json["nodes"]?.AsArray() ?? [];
+                    foreach (var node in nodes)
+                    {
+                        if (node!["extensions"]?["OMI_physics_body"]?["collider"]?["shape"] is not { } shape)
+                        {
+                            continue;
+                        }
+                        colliders++;
+                        var index = shape.GetValue<int>();
+                        if (index < 0 || index >= shapeCount)
+                        {
+                            failures.Add($"{name}: collider shape {index} of {shapeCount}");
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    failures.Add($"{name}: {e.GetType().Name}: {e.Message}");
+                }
+            }
+
+            _output.WriteLine($"{files.Count} files, {colliders} colliders");
+            foreach (var failure in failures)
+            {
+                _output.WriteLine(failure);
+            }
+
+            // Assert
+            Assert.Equal(147, files.Count);
+            Assert.NotEqual(0, colliders);
+            Assert.Empty(failures);
+        }
+
         // With every level of detail and every hidden node kept, no geometry may be lost: each shape or corona with
         // vertices gets its own mesh
         [GameDataFact]
