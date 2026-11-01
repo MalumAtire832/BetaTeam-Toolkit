@@ -31,7 +31,7 @@ Almost all game data ships inside eight `.pac` archives next to the executable:
 | `Bhvr.pac`      | Per-object behaviour code, as Windows DLLs (`.DLL`)               |
 | `Etc.pac`       | Fonts (`.DDF` + `.TGA` glyph pages), puzzles (`.PUZ`), text files |
 | `Fin.pac`       | 3D models and scenes (`.FIN`)                                     |
-| `LMap.pac`      | Textures, most likely lightmaps given the `LM` in names (`.TGA`)  |
+| `LMap.pac`      | Lightmaps for the levels (`.TGA`)                                 |
 | `Locale_en.pac` | English voice-over audio (`.DDS`) and string tables (`.TXT`)      |
 | `Map.pac`       | Textures (`.TGA`)                                                 |
 
@@ -42,8 +42,8 @@ Almost all game data ships inside eight `.pac` archives next to the executable:
 | [PAC archives](formats/pac.md)            | Documented, verified                             |
 | [DDS audio](formats/dds-audio.md)         | Documented, verified                             |
 | [String tables](formats/string-tables.md) | Documented, verified                             |
-| TGA textures                              | Standard Truevision TGA                          |
-| [FIN models](formats/fin.md)              | Documented, verified (reading); converts to glTF |
+| [TGA textures](formats/tga.md)            | Documented, verified                             |
+| [FIN models](formats/fin.md)              | Documented, verified (reading); converts to glTF with materials |
 | DDF fonts, PUZ puzzles                    | Not yet investigated                             |
 
 ## Conventions

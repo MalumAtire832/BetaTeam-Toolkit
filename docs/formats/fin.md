@@ -44,8 +44,8 @@ Blender can import:
   in Blender are Blender's conversion of them (a rotation about Z shows as one about −Y).
 - Shapes become meshes with their vertex positions, normals, colours and first two texture coordinates. Normals are
   scaled to unit length, which glTF requires; a shape with a zero normal gets none and Blender computes its own.
-  Every shape gets the same plain white material until textures are converted. A `DDCorona` has no triangles, so
-  its vertices are written as points.
+  Each shape gets a material built from the properties that apply to it (see [Materials](#materials)). A `DDCorona`
+  has no triangles, so its vertices are written as points.
 - A `NiLODNode` keeps only its most detailed level: the child whose range starts closest to the camera.
   `--include-all-lods` keeps every level. Each level's node carries its index into the ranges as `lodLevel`.
 - Characters' flat `LOD_` stand-ins (see [Distant characters](#distant-characters)) are left out the same way, and
@@ -58,7 +58,22 @@ Blender can import:
   importer reads, so they then show as visible. The flat `LOD_` stand-ins aren't marked this way: the game hides
   them while it runs.
 - Lights aren't part of the tree (see [NiLight](#nilight)), so they are placed under the root as empty nodes with
-  their own transform.
+  their own transform. A directional, point or spot light also gets a child node `Light` holding a
+  `KHR_lights_punctual` light: its diffuse colour (converted to linear like material colours) with the dimmer as
+  intensity, pointing along the light's direction, and for a spotlight the spot angle as the outer cone. The fade with
+  distance has no glTF equivalent, so no range is written; the original values stay in the light node's extras.
+  Ambient lights have no glTF light.
+- An object whose [collision propagate mode](#collision-propagate-modes) makes its bounding volume the final shape
+  (`0`, `4`, `6`) gets a child node `Collision0`, `Collision1`, … after its own children for each box, sphere and
+  capsule of the volume (every member of a union), placed and turned where the volume is. Each holds an
+  `OMI_physics_body` collider naming its shape in the file's `OMI_physics_shape` list, so an importer such as Godot
+  makes a static body of it. Volumes with no such shape stay in the extras only, counted on the object's node as
+  `collisionShapesSkipped`: inverted volumes, half spaces, intersections, lozenges and degenerate shapes. The OMI
+  extensions are used rather than `KHR_collision_shapes` because Godot 4.7 imports only these. Objects in the other
+  modes get no collider; for them the engine tests the triangles below, which an importer can generate from the
+  meshes.
+- The generated `Light` and `Collision` nodes carry no extras, so every node with extras is one of the file's
+  objects.
 - Every other field of an object goes into its node's *extras*, which Blender shows under *Object Properties →
   Custom Properties*: names, flags, bounding volumes, extra data, and its properties written out in full. Blocks
   outside the tree, such as `DDActorSharedData` and texture animations, are in the root node's `blocks`, keyed by
@@ -66,14 +81,77 @@ Blender can import:
   is kept as `TextureCoordinateW` on shapes where it isn't always `0`.
 - glTF doesn't allow texture coordinates that aren't finite numbers, and some shipped files have them (see
   [NiTriShape](#nitrishape)). We chose to write `0` for each such u or v, and to record on the shape's node how many
-  coordinates were affected, as `NonFiniteTextureCoordinates`. In Blender this makes no visible difference, since
-  textures aren't converted yet and the default material doesn't use the second texture set. Once textures are
-  converted, an affected triangle will show one texel of its texture.
+  coordinates were affected, as `NonFiniteTextureCoordinates`. Nearly all of them are in the second texture set, which
+  only lightmaps use; an affected triangle shows one texel of its texture.
 - A skinned mesh (`Ni3dsSkin`) is written the way the game draws it, not with its stored vertices, which are in
   another frame (see [Skinned meshes](#skinned-meshes)). Its vertices are placed by their bones at rest, and the
   bones become the joints of a glTF skin. Blender imports them as an armature, and posing a bone moves the mesh.
 
-Animation and morphing aren't converted yet; their data is in the extras.
+- A morphing shape (`Ni3dsMorphShape`) is written with its first target as the mesh and every other target as a glTF
+  morph target, the difference from the first, which is how the game blends them (see
+  [Morphing shapes](#morphing-shapes)).
+- Each skill becomes a glTF animation; see [Animations](#animations).
+
+#### Animations
+
+Every skill (see [DDActorSharedData](#ddactorshareddata)) becomes one glTF animation with the skill's name, cut from
+the object's single timeline between the skill's start and end. Times in the glb are seconds from the skill's start.
+
+- **What a skill moves** is what the game moves when it plays it (see [Playing a skill](#playing-a-skill)): the
+  animated nodes the skill lists, every node with a key inside the skill or a pose at the skill's start or end that
+  differs from its pose at time 0, the skill's morphing shapes and flip-books, and every colour and transparency
+  animator.
+- **Values** are worked out the way the game interpolates its keys (see [Keys](#keys)), every 1/60 s plus at every key
+  inside the skill, and written as linear glTF keys. A player that interpolates linearly between them stays close to
+  the game, and matches it at each sample.
+- **Transforms:** a node with position keys gets a translation, one with rotation keys a rotation, one with scale keys a
+  scale. A rotation always comes with a uniform scale, because a rotation key replaces the whole rest rotation,
+  including a mirrored one, which glTF writes as a negative scale.
+- **Visibility** uses `KHR_node_visibility`, animated through `KHR_animation_pointer`, with a step at the skill's
+  start and at each visibility key. The node's own `KHR_node_visibility` says whether the game loads it shown.
+- **Colours:** a diffuse colour or transparency animator drives the material's base colour, an emissive animator its
+  emissive colour, both through `KHR_animation_pointer` and with the same conversion as the material's own colours.
+  An unlit material only takes the transparency. The game drives every colour animator of an object whatever skill it
+  plays, so every skill's animation carries them. Ambient and specular colour animators aren't written: glTF has no
+  place for those colours.
+- **Morphing:** the weights of the shape's morph targets.
+- **Flip-books** have no glTF animation target. The root node's extras list them under `flipbooks`, one entry per
+  skill and material: `{"skill", "material", "images", "times", "frames"}`, where `images` are glTF image indices,
+  and from `times[i]` (seconds from the skill's start) on the material shows `images[frames[i]]`. A skill that only
+  flips textures has no channel, so no glTF animation is written for it; neither is one for a skill with nothing to
+  animate.
+- Flip-books that no skill runs (those without `TexturePropExtraData`) run on their own in the game and aren't
+  converted. A node can only be animated when its rest transform is a rotation and scale; one that isn't stops the
+  conversion with an error. `--include-hidden` is needed for the hidden nodes some skills show.
+
+#### Materials
+
+A shape's material comes from every property that applies to it: its own and those of the nodes above it, a lower
+one replacing a higher one of the same class, the way the engine keeps its drawing state. Shapes with the same
+properties share one material.
+
+- The texture is `images[index]` of the `NiTextureProperty`, on the first texture set. It isn't embedded: the glb
+  names it by a URI relative to the model, `../textures/<name>.png` by default (`--texture-uri-prefix` changes the
+  part before the name), with the name in lower snake case (`Studs Gry.tga` becomes `studs_gry.png`). Convert the
+  textures with `betateam convert tga png` into that folder, for example models into `out/models` and both texture
+  archives into `out/textures`. Textures are shared between models that way, as in the game.
+- The sampler follows the `NiTextureModeProperty`'s filter and clamp modes (see below).
+- The base colour is the `NiMaterialProperty`'s diffuse colour and alpha (alpha limited to `0`–`1`; one shipped
+  material says `3.6`), and its emittance becomes the emissive colour. Vertex colours multiply the base colour, as
+  glTF prescribes and as the engine's texture apply mode does.
+- The game's colours (diffuse, emittance, vertex colours) are display values: its renderer multiplies them as they
+  are, like the hardware of its time. glTF colours are linear, so they're converted with the sRGB curve; a renderer
+  that multiplies in linear space then shows the same products the game did. Alpha stays as it is.
+- A shape without normals can't be lit: the engine shows its vertex colours, which have the lighting baked in. Such a
+  shape gets an unlit material (`KHR_materials_unlit`) with a white base colour; only the alpha is kept. Every
+  shape with a lightmap is one of these. That the diffuse colour plays no part then is inferred, not confirmed.
+- A shape under a `NiAlphaProperty` with blending on is blended (`alphaMode: BLEND`); otherwise it's opaque. Every
+  shipped alpha property uses the ordinary source-alpha blend.
+- A lightmap (the one image of a `NiMultiTextureProperty`) multiplies the shape's colour, mapped with the second
+  texture set. glTF has no place for it, so the image goes into the glTF image list and the material's extras point
+  to it: `"lightmap": {"image": <index>, "texCoord": 1}`.
+- Every property is also written out in full in the material's extras, under `properties`, for what glTF has no
+  field for (depth buffer, vertex colour mode, specular, ...).
 
 ## Header
 
@@ -167,7 +245,7 @@ Parent of everything that has a place in the scene: nodes, shapes, lights.
 | `f32`     | scale               | Uniform scale relative to the parent                                           |
 | `vec3`    | velocity            | Local velocity (engine: `GetLocalVelocity`)                                    |
 | `link[]`  | properties          | Render properties (material, texture, alpha, ...) that apply to this object and everything below it |
-| `u32`     | collision propagate | How collision tests treat this object's children (engine: `GetCollisionPropagate`). Which value means what hasn't been confirmed |
+| `u32`     | collision propagate | How collision tests treat this object and its children (engine: `GetCollisionPropagate`), see [Collision propagate modes](#collision-propagate-modes) |
 | `u32`     | has bounding volume | Non-zero if a collision shape follows, see [Bounding volumes](#bounding-volumes) |
 
 The transform is local: an object's position, rotation and scale are relative to its parent node, and vertices are
@@ -272,7 +350,16 @@ A node that turns to face the camera, so flat shapes below it always face the vi
 
 | Type  | Field | Meaning                                                                        |
 |-------|-------|--------------------------------------------------------------------------------|
-| `i32` | mode  | How the node turns (engine: `SetMode`). Shipped files use `0`, `1` and `2`; which turn is which isn't mapped yet |
+| `i32` | mode  | How the node turns (engine: `SetMode`), see below |
+
+The node keeps its position and scale and replaces its rotation, so that its local +Z points at the viewer and +Y
+stays up:
+
+| Mode | Turn                                                                                         |
+|------|----------------------------------------------------------------------------------------------|
+| `0`  | Faces the camera, rolled to keep the node's up axis as upright as the view allows            |
+| `1`  | Turns only about the parent's Y axis towards the camera; in shipped files that axis is up      |
+| `2`  | Takes the camera's rotation as it is (inferred from the code's shape, not traced in detail)   |
 
 ### NiLight
 
@@ -285,16 +372,16 @@ getters (`GetLocation`, `GetDimmer`, `GetAttenuationCurve`, ...).
 | `vec3`      | location             | Position                                                              |
 | `vec3`      | direction            | Direction, for directional lights and spotlights                      |
 | `bool`      | light switch         | Whether the light is on                                               |
-| `f32`       | spot angle           | Cone angle of a spotlight                                             |
+| `f32`       | spot angle           | Cone angle of a spotlight, in degrees                                 |
 | `f32`       | spot exponent        | How quickly a spotlight fades towards the edge of its cone            |
-| `f32`       | dimmer               | Brightness multiplier                                                 |
+| `f32`       | dimmer               | Brightness multiplier; the colours are multiplied by it               |
 | 3 × `f32`   | ambient colour       | Red, green, blue                                                      |
 | 3 × `f32`   | diffuse colour       | Red, green, blue                                                      |
 | 3 × `f32`   | specular colour      | Red, green, blue                                                      |
 | `f32`       | attenuation distance | Distance over which the light fades                                  |
 | `f32`       | attenuation curve    | Shape of the fade                                                     |
 | `bool`      | attenuation          | Whether the light fades with distance at all                         |
-| `i32`       | light type           | Kind of light. Shipped files use `1` and `2`; not mapped to names yet |
+| `i32`       | light type           | Kind of light: `0` ambient, `1` directional, `2` point, `3` spot. Shipped files use `1` and `2` |
 | `i32` + count × `u32` | illuminated nodes | Link IDs of the nodes it lights. The game reads and ignores them: the nodes' effect lists are what count |
 
 ### Bounding volumes
@@ -309,13 +396,31 @@ Some objects carry a collision shape. It is stored inside the object, right afte
 | 2    | capsule       | `vec3` origin, `vec3` direction, `f32` radius, `bool` inverted                  |
 | 3    | lozenge       | `vec3` origin, two `vec3` edges of a parallelogram, `f32` radius                |
 | 4    | union         | `u32` count, then that many nested volumes. Inside any of them                  |
-| 5    | half space    | A plane: `vec3` normal and `f32` constant. Everything on one side               |
+| 5    | half space    | A plane: `vec3` normal *n* and `f32` constant *c*. Solid where *n · p ≤ c*      |
 | 6    | intersection  | `u32` count, then that many nested volumes. Inside all of them                  |
 
 Half spaces and intersections are Digital Domain's additions. An inverted shape collides from the inside, for
 example to keep something within an area. The types a file can use are registered by the collision library, so a
 type outside 0–6 can't be read. Shipped files give 324 nodes a volume: mostly boxes and unions, then spheres,
 capsules and a few intersections.
+
+The box's axes are unit vectors and its extents half sizes along them. The capsule is the segment from the origin to
+origin + direction, widened by the radius.
+
+#### Collision propagate modes
+
+Whether the engine collides with an object's bounding volume, with the triangles below it or with nothing depends on
+its collision propagate mode:
+
+| Mode          | Collision                                                                   |
+|---------------|-----------------------------------------------------------------------------|
+| `0`, `6`      | The object's bounding volume is the final shape; nothing below it is tested |
+| `1`, `2`, `7` | Descends: the children are tested, and geometry collides with its triangles |
+| `3`           | Nothing in the subtree collides                                             |
+| `4`           | As `0`, but not while the object is hidden (app culled)                     |
+| `5`           | As `1`, but not while the object is hidden (app culled)                     |
+
+Hidden objects in the other modes still collide.
 
 ## Properties
 
@@ -324,7 +429,8 @@ object in the tree, unless something lower down overrides it. Every property sta
 then a `bool` *master* flag (engine: `GetMaster`), whose effect hasn't been confirmed. The exception is
 `NiShadeProperty`, whose loader skips the property part and has no master flag.
 
-Most mode fields below are engine enums whose numbers aren't mapped to names yet.
+The mode fields below are engine enums. The texture modes follow the order NetImmerse kept into Gamebryo, which the
+game's renderer confirms; the vertex colour mode isn't mapped yet.
 
 ### NiMaterialProperty
 
@@ -345,6 +451,9 @@ Most mode fields below are engine enums whose numbers aren't mapped to names yet
 | `u32`  | source blend mode | Blend factor for the object's own colour                |
 | `u32`  | destination blend mode | Blend factor for the colour behind it              |
 
+Every shipped alpha property blends, with source mode `6` and destination mode `7`: source alpha and one minus source
+alpha in NetImmerse's order, the ordinary transparency blend.
+
 ### NiTextureProperty
 
 | Type     | Field  | Meaning                                                         |
@@ -362,6 +471,19 @@ How the texture is applied. Each field is an engine enum.
 | `u32` | filter | How the texture is sampled (nearest, bilinear, mipmaps)   |
 | `u32` | clamp  | Whether the texture repeats or stops at its edges         |
 
+| Value | Filter                                    | Clamp                                  |
+|-------|-------------------------------------------|----------------------------------------|
+| `0`   | Nearest texel                             | Clamped in both directions             |
+| `1`   | Bilinear                                  | Clamped in u, repeating in v           |
+| `2`   | Trilinear (bilinear, blending mipmaps)    | Repeating in u, clamped in v           |
+| `3`   | Nearest texel, nearest mipmap             | Repeating in both directions           |
+| `4`   | Nearest texel, blending mipmaps           |                                        |
+| `5`   | Bilinear, nearest mipmap                  |                                        |
+
+The renderer stores clamp modes as a u and a v address mode in that order, so which of the two is u is inferred from
+the order. Without mipmaps, the renderer falls back to nearest (`3`, `4`) or bilinear (`2`, `5`). Every shipped apply mode is
+`3`, which multiplies the texture with the lit or vertex colour, alpha included.
+
 ### NiMultiTextureProperty
 
 Several textures drawn on top of each other in stages. Each list has one entry per stage.
@@ -372,6 +494,9 @@ Several textures drawn on top of each other in stages. Each list has one entry p
 | `u32` + count × `u32` | combine modes | How each stage combines with the one before             |
 | `u32` + count × `u32` | clamp modes   | As in `NiTextureModeProperty`                           |
 | `u32` + count × `u32` | filter modes  | As in `NiTextureModeProperty`                           |
+
+The game uses it only for lightmaps: every shipped one has a single image, combine mode `0`, clamp `0` and filter `1`.
+Combine mode `0` multiplies the image with the colour below it, at full strength (not doubled).
 
 ### Other properties
 
@@ -399,16 +524,22 @@ The game loads each file name only once and shares it between all images that na
 
 ### NiFlipTextures
 
-An animation that steps through the images of a `NiTextureProperty`. In engine
-terms it is an *action*: the game starts running it as soon as the file is loaded, so no other block links to it.
+An animation that steps through the images of a `NiTextureProperty`. In engine terms it is an *action*, so no other
+block links to it. A texture property that has a `TexturePropExtraData` (see [Extra data](#extra-data)) gets its
+flip-book run by the skills that list the extra data's index among their actions (see
+[Playing a skill](#playing-a-skill)); one without runs on its own from the moment the file is loaded (inferred).
 
 | Type   | Field        | Meaning                                                              |
 |--------|--------------|----------------------------------------------------------------------|
-| `u32`  | out of bound | What happens after the last image (engine enum, not mapped yet)     |
-| `f32`  | rate         | Playback speed (engine: `SetRate`)                                   |
-| `f32`  | start time   | When the animation starts (engine: `GetStartTime`)                  |
-| `f32`  | cycle time   | Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images (engine: `GetSecsPerFrame`). The name is this toolkit's |
+| `u32`  | out of bound | What happens after the last image: `0` starts again, `1` runs back and forth, `2` stays on the last image |
+| `f32`  | rate         | Playback speed (engine: `SetRate`); the game uses it only to set up the cycle time |
+| `f32`  | start time   | When the animation starts, in ticks (engine: `GetStartTime`)        |
+| `f32`  | cycle time   | Ticks for one pass through the images. Together with the rate and the number of images this gives the time per image: cycle time × rate ÷ images (engine: `GetSecsPerFrame`). The name is this toolkit's |
 | `link` | textures     | The `NiTextureProperty` whose index it changes                      |
+
+At a time *t* in ticks the game shows image ⌊images × *p* ÷ cycle time⌋, never past the last one, where *p* is
+how far *t* is past the start time: wrapped into one cycle when the animation starts again (before the start too),
+counted back in every second cycle when it runs back and forth, or held at the first and last image when it stays.
 
 ## Extra data
 
@@ -426,7 +557,7 @@ instead.
 
 Animated models use the 3ds Max animation classes (`Ni3ds...`) that came with NetImmerse's 3ds Max exporter: node
 animation, colour and transparency animators, skinned meshes and morphing meshes. This section describes their
-layout so files can be read; what each setting does is left for a later investigation.
+layout and how the game plays them.
 
 ### Keys
 
@@ -444,8 +575,32 @@ type of all keys in it. Some lists only store the type when the count is above z
 
 Every rotation key starts with the time, an angle, a `vec3` axis, a quaternion (4 × `f32`), an `i32` number of extra
 spins and a `u32` whose meaning is unknown (engine: `GetAngle`, `GetAxis`, `GetQuaternion`, `GetExtraSpins`). The
-angle and axis are how 3ds Max describes the rotation; the quaternion is the same rotation in NetImmerse's form. A visibility key is a time and a `bool`. Colours are animated with
-position keys, with red, green and blue in place of x, y and z.
+angle and axis are how 3ds Max describes the rotation; the quaternion is the same rotation in NetImmerse's form,
+stored w first. A visibility key is a time and a `bool`. Colours are animated with position keys, with red, green and
+blue in place of x, y and z.
+
+How the game works out a value at a time *t*:
+
+- At or before the first key it takes the first key's value, at or after the last key the last one's, and at a key's
+  own time that key's. Otherwise it interpolates from the key before to the key after, with *s* going from 0 to 1
+  between their times.
+- Linear keys interpolate linearly; rotations use spherical interpolation (slerp) of the quaternions. The game's slerp
+  doesn't flip a quaternion to take the shorter way round.
+- Bézier and TCB position keys store the segment's cubic: the value is value + *s*(c₁ + *s*(c₂ + *s*·c₃)), with c₁
+  the out tangent (Bézier) or the second precomputed vector (TCB) and c₂, c₃ the last two vectors.
+- Bézier and TCB float keys are Hermite curves: from the key's value with its out tangent (Bézier) or second
+  precomputed value (TCB) to the next key's value with its in tangent (Bézier) or first precomputed value (TCB).
+- Bézier and TCB rotation keys use *squad*: slerp(2*s*(1−*s*), slerp(*s*, q₀, q₁), slerp(*s*, a, b)), where a is the
+  key's control quaternion (Bézier: its one extra quaternion; TCB: the first) and b the next key's (Bézier: its one;
+  TCB: the second).
+- The rotation key's last `u32` picks the interpolation: `0` is the one above. The game also has modes that
+  interpolate the angle and axis, with or without extra spins, but no shipped key uses them.
+- An Euler key holds three float key lists, angles in radians about x, y and z, each evaluated as above (an empty one
+  is 0). Its `u16` picks the order the three turns are applied in; `0`, the only one shipped, turns about x first,
+  then y, then z. Only the first Euler key of a list counts.
+- Visibility holds each key's value until the next key.
+- A barycentric morph key holds, per morph target, a weight, an in tangent and an out tangent (the 3 × n values, all
+  floats); each target's weight is a Hermite curve between keys.
 
 ### Animation settings
 
@@ -453,8 +608,12 @@ Every 3ds animation class stores the same playback settings: `u32` animation typ
 *scene graph update*, `u32` cycle type (how the animation repeats), then five `f32`: default display time,
 frequency (playback speed, usually `1`), phase, begin key time and end key time. The names are the engine's
 (`GetAnimType`, `GetSceneGraphUpdate`, `GetCycleType`, `GetDefaultDisplayTime`, `GetFrequency`, `GetPhase`,
-`GetBeginKeyTime`, `GetEndKeyTime`). Times appear to be 3ds Max ticks (4800 per second): end key times such as 960,
-3200 and 12800 are common.
+`GetBeginKeyTime`, `GetEndKeyTime`). Times are 3ds Max ticks, 4800 per second: the game turns a skill's seconds into
+ticks by multiplying by 4800 and rounding.
+
+Before evaluating keys the game turns a time *t* into *t* × frequency + phase, then applies the cycle type: `0`
+wraps it into the range from begin to end key time, `1` runs back and forth through that range, and any other value
+leaves it. The result is then kept within the range. A range of zero length always gives the begin key time.
 
 ### Animated classes
 
@@ -462,8 +621,8 @@ frequency (playback speed, usually `1`), phase, begin key time and end key time.
 |----------------------|----------------------|---------------------------------------------------------------------------------|
 | `Ni3dsAnimationNode` | `NiNode`             | Settings, then rotation, position and scale (float) key lists, each storing its type only when it has keys, then `i32` count and visibility keys |
 | `Ni3dsBone`          | `Ni3dsAnimationNode` | Nothing: a bone is an animated node that a skin refers to                      |
-| `Ni3dsColorAnimator` | `NiObject`           | Settings, `link` target, unknown `u32`, `i32` count, key type (always), colour keys |
-| `Ni3dsAlphaAnimator` | `NiObject`           | Settings, `link` target, `i32` count, key type (always), float keys           |
+| `Ni3dsColorAnimator` | `NiObject`           | Settings, `link` target, `u32` colour (`0` ambient, `1` diffuse, `2` specular, `3` emissive), `i32` count, key type (always), colour keys. Each channel is kept within `0`–`1` |
+| `Ni3dsAlphaAnimator` | `NiObject`           | Settings, `link` target, `i32` count, key type (always), float keys for the material's alpha (not limited) |
 | `Ni3dsSkin`          | `NiTriShape`         | Unknown `u8`, `bool` has skin data; if set, per vertex a `u16` count of influences, each a `f32` weight, a `vec3` offset relative to the bone, and a `link` to the `Ni3dsBone` |
 | `Ni3dsMorphShape`    | `NiTriShape`         | Settings, 2 unknown `u8`, `i32` target count, `i32` key count, a bounding sphere (`vec3`, `f32`), key type and float keys, then per target one `vec3` per vertex |
 
@@ -485,6 +644,12 @@ levels away.
 
 In every shipped skin, each vertex follows exactly one bone. With one bone the game ignores the weight and moves the
 vertex with the bone in full, so body parts move rigidly, like the parts of a minifigure.
+
+### Morphing shapes
+
+A `Ni3dsMorphShape` with barycentric keys draws a blend of its targets: the first target, plus each other target's
+difference from the first times that target's weight. The stored vertices aren't drawn. That the blend is exactly this
+sum is inferred from how the game prepares the targets; the function that adds them up hasn't been read.
 
 ### Distant characters
 
@@ -551,8 +716,14 @@ skill; others are generic (`anim1`, `on`, `off`) or specific to a character or m
 | `i32` + count × `u16` | actions          | Which of its actions (such as texture animations) the skill runs (engine: `GetActionArray`) |
 | `i32` + count × `u16` | other animations | Which of its other animated parts (such as morphing meshes) the skill runs (engine: `GetAnimEtcArray`) |
 
-The indices refer to the actor's own lists of animated parts, which the game builds when it loads the object. How it
-orders those lists hasn't been worked out yet, so the indices can't be matched to blocks in the file for now.
+The indices refer to the actor's own lists of animated parts, which the game builds when it loads the object:
+
+- **Animation nodes:** walking the actor's tree depth first, each `Ni3dsAnimationNode` (bones included) in turn gets
+  the next of the shared data's tracks, and its own keys are replaced by them; a node listed in two places is reached
+  twice and keeps the last track. The indices count the nodes in that order.
+- **Actions:** each texture property with at least two images and a `TexturePropExtraData` puts its flip-book at the
+  extra data's index.
+- **Other animations:** morphing shapes; that they're counted in tree order is inferred.
 
 A skill's sound:
 
@@ -568,6 +739,16 @@ A skill's sound:
 | `f32`    | distance model scale | How quickly the sound gets quieter with distance (engine: `SetDistanceModelScale`) |
 | `f32`    | max distance         | Distance beyond which the sound is no longer heard (engine: `SetMinMaxDistance`) |
 | `f32`    | min distance         | Distance within which the sound plays at full volume (engine: `SetMinMaxDistance`) |
+
+#### Playing a skill
+
+When it loads an object the game adds to every skill's list of animation nodes each node whose track has a key
+between the skill's start and end, or whose pose at the skill's start or end differs from its pose at time 0. It also
+drops the keys between skills from each track, keeping the first and last key of every gap, which doesn't change any
+value inside a skill.
+
+While a skill plays, the game evaluates its animation nodes, its actions and its other animations at the skill's time
+in ticks, and every colour and transparency animator of the object as well, whichever skill it is.
 
 ### DDCorona
 

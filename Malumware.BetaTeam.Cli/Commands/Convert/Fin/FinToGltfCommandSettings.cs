@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Malumware.BetaTeam.Lib.IO.Fin.Gltf;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -25,6 +26,11 @@ namespace Malumware.BetaTeam.Cli.Commands.Convert.Fin
         [CommandOption("--include-hidden")]
         [Description("Write the nodes the game loads hidden, such as effects, glows and lights it switches on when needed")]
         public bool IncludeHidden { get; init; }
+
+        [CommandOption("--texture-uri-prefix")]
+        [Description("Put in front of each texture's PNG name in the glb, relative to the glb")]
+        [DefaultValue(FinToGltfConverter.DEFAULT_TEXTURE_URI_PREFIX)]
+        public required string TextureUriPrefix { get; init; }
 
         public override ValidationResult Validate()
         {
