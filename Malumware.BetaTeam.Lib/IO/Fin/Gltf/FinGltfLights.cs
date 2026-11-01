@@ -49,22 +49,7 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
 
         private static Quaternion PointAlong(Vector3 direction)
         {
-            if (!float.IsFinite(direction.X) || !float.IsFinite(direction.Y) || !float.IsFinite(direction.Z)
-                || direction.LengthSquared() == 0)
-            {
-                return Quaternion.Identity;
-            }
-
-            var target = Vector3.Normalize(direction);
-            var dot = Vector3.Dot(GLTF_FORWARD, target);
-            if (dot < -1 + 1e-6f)
-            {
-                return Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI);
-            }
-
-            var axis = Vector3.Cross(GLTF_FORWARD, target);
-
-            return Quaternion.Normalize(new Quaternion(axis, 1 + dot));
+            return FinGltfTransform.ShortestArc(GLTF_FORWARD, direction);
         }
     }
 }
