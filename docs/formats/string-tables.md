@@ -83,3 +83,24 @@ The keys tie the text to the rest of the game's data:
 - `SPACES_EN` keys start with a mission ID (`M1020 name`, `M1020 goal`) matching the level file `M1020.PUZ`.
 - Many `ETC_EN` keys are the names of buttons in `UILAYOUT.TXT` (`MenuAdventureButton`), so a button's label can
   be found from its name. This is inferred from matching names; not every button has an entry.
+
+## Gettext export
+
+The export writes the tables as a gettext PO file (and a POT template) for Godot's translation system. The rules:
+
+1. A header entry comes first (`Content-Type: text/plain; charset=UTF-8`, `Content-Transfer-Encoding: 8bit`, and
+   `Language` in the PO). Line endings are `\n`, the file is UTF-8.
+2. Entries follow table order, then entry order. Each has a `#. <table name>` comment and a `msgid` with the key in
+   upper case. The engine upper-cases every key on load and looks keys up case-insensitively, while the tables mix
+   cases (`cu0001 name`, but level files say `CU0001`). Godot's `tr()` is case-sensitive, so the port looks up
+   `tr(key.to_upper())`.
+3. A key that was already written (compared case-insensitively) is skipped: the first definition wins, as in the
+   engine, and a PO file can't repeat a `msgid`.
+4. In the PO, trailing line feeds of a value are trimmed (they are the blank line between entries; the parser keeps
+   them to match the engine). A one-line value is a single `msgstr`; a multi-line value is `msgstr ""` followed by one
+   quoted line per value line, each but the last ending in `\n`. The POT has an empty `msgstr` everywhere.
+5. Inside quotes, `\`, `"` and tab are escaped. A value with any other control character is rejected with an
+   `InvalidDataException` naming the table and key, so nothing unprintable reaches a PO file silently.
+
+`KBD_EN` is left out of the export (the export decides that, not the writer): its values are Windows virtual-key
+codes (`\x1B`), not text.
