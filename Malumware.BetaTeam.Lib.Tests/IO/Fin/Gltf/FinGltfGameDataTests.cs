@@ -169,6 +169,24 @@ namespace Malumware.BetaTeam.Lib.Tests.IO.Fin.Gltf
             };
         }
 
+        [GameDataFact]
+        public void Environment_HasPunctualLights()
+        {
+            // Arrange
+            var (name, data) = FinGameDataTests
+                .FinFiles()
+                .First(e => e.Name.Equals("E1010", StringComparison.OrdinalIgnoreCase));
+            var file = FinReader.Read(name, data);
+
+            // Act
+            var glb = new FinToGltfConverter(true, true).ToGlb(file);
+
+            // Assert
+            var lights = GlbTestReader.Json(glb)["extensions"]?["KHR_lights_punctual"]?["lights"]?.AsArray();
+            Assert.NotNull(lights);
+            Assert.NotEmpty(lights);
+        }
+
         // With every level of detail and every hidden node kept, no geometry may be lost: each shape or corona with
         // vertices gets its own mesh
         [GameDataFact]

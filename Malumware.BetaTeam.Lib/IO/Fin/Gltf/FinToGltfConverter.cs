@@ -283,6 +283,11 @@ namespace Malumware.BetaTeam.Lib.IO.Fin.Gltf
                     _ancestors.Remove(block);
                 }
 
+                if (block is NiLight light)
+                {
+                    FinGltfLights.Attach(_model, node, light);
+                }
+
                 node.Extras = extras;
             }
 
