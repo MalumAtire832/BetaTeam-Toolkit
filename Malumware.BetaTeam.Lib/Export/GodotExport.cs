@@ -1,6 +1,9 @@
+using System.Text;
 using Malumware.BetaTeam.Lib.IO;
+using Malumware.BetaTeam.Lib.IO.Dds;
 using Malumware.BetaTeam.Lib.IO.Fin;
 using Malumware.BetaTeam.Lib.IO.Fin.Gltf;
+using Malumware.BetaTeam.Lib.IO.Locale;
 using Malumware.BetaTeam.Lib.IO.Tga;
 
 namespace Malumware.BetaTeam.Lib.Export
@@ -13,6 +16,13 @@ namespace Malumware.BetaTeam.Lib.Export
         private const string TEXTURES = "textures";
         private const string LEVELS = "levels";
         private const string DATA = "data";
+        private const string AUDIO = "audio";
+        private const string TEXT = "text";
+        private const string POT_NAME = "alphateam.pot";
+        private const string LOCALE_PREFIX = "Locale_";
+
+        // The keyboard tables hold Windows virtual-key codes, not text; the port takes its controls from Godot's input map
+        private const string KEYBOARD_TABLE_PREFIX = "KBD_";
 
         // The data files the port's later phases read, copied as they are
         private static readonly HashSet<string> DATA_FILES = new(StringComparer.OrdinalIgnoreCase)
@@ -29,13 +39,20 @@ namespace Malumware.BetaTeam.Lib.Export
             (TEXTURES, "png"),
             (LEVELS, "puz"),
             (DATA, "txt"),
+            (AUDIO, "wav"),
+            (TEXT, "po"),
+            (TEXT, "pot"),
         ];
+
+        // An output file, the game files it is made from, and how
+        private sealed record PlannedOutput(string Path, IReadOnlyList<GameFile> Sources, Func<byte[]> Convert, string Label);
 
         private readonly bool _force;
         // Every level and unit needs the whole scene graph: PUZ attach paths count every child of the original
         private readonly FinToGltfConverter _converter = new(includeAllLevelsOfDetail: true, includeHidden: true);
         private readonly TgaReader _tgaReader = new();
         private readonly TgaToPngConverter _pngConverter = new();
+        private readonly DdsAudioConverter _wavConverter = new();
 
         // force rewrites every output, for when the toolkit changed rather than the game
         public GodotExport(bool force = false)
@@ -46,21 +63,18 @@ namespace Malumware.BetaTeam.Lib.Export
         public GodotExportResult Run(IReadOnlyList<GameFile> files, string outputDirectory)
         {
             // Every name is planned before anything is written, so a clash leaves the output untouched
-            var outputs = new SortedDictionary<string, GameFile>(StringComparer.Ordinal);
+            var outputs = new SortedDictionary<string, PlannedOutput>(StringComparer.Ordinal);
             var errors = new List<string>();
-            foreach (var file in files)
+            foreach (var planned in Plan(files))
             {
-                var output = OutputPath(file);
-                if (output is null)
+                if (outputs.TryGetValue(planned.Path, out var other))
                 {
+                    var first = other.Sources[0];
+                    var second = planned.Sources[0];
+                    errors.Add($"{first.Archive}/{first.Name} and {second.Archive}/{second.Name} both become {planned.Path}");
                     continue;
                 }
-                if (outputs.TryGetValue(output, out var other))
-                {
-                    errors.Add($"{other.Archive}/{other.Name} and {file.Archive}/{file.Name} both become {output}");
-                    continue;
-                }
-                outputs[output] = file;
+                outputs[planned.Path] = planned;
             }
             if (errors.Count > 0)
             {
@@ -70,10 +84,11 @@ namespace Malumware.BetaTeam.Lib.Export
             var removed = RemoveStale(outputDirectory, outputs.Keys.ToHashSet());
             var written = 0;
             var skipped = 0;
-            foreach (var (output, file) in outputs)
+            foreach (var (output, planned) in outputs)
             {
                 var path = Path.Combine(outputDirectory, output);
-                if (!_force && File.Exists(path) && File.GetLastWriteTimeUtc(path) >= file.Modified)
+                var newest = planned.Sources.Max(e => e.Modified);
+                if (!_force && File.Exists(path) && File.GetLastWriteTimeUtc(path) >= newest)
                 {
                     skipped++;
                     continue;
@@ -81,7 +96,7 @@ namespace Malumware.BetaTeam.Lib.Export
 
                 try
                 {
-                    var bytes = Convert(file);
+                    var bytes = planned.Convert();
                     Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                     File.WriteAllBytes(path, bytes);
                     written++;
@@ -89,18 +104,86 @@ namespace Malumware.BetaTeam.Lib.Export
                 // One broken file shouldn't stop the others
                 catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
                 {
-                    errors.Add($"{file.Archive}/{file.Name}: {e.Message}");
+                    errors.Add($"{planned.Label}: {e.Message}");
                 }
             }
 
             return new GodotExportResult(written, skipped, removed, errors);
         }
 
+        private IEnumerable<PlannedOutput> Plan(IReadOnlyList<GameFile> files)
+        {
+            foreach (var file in files)
+            {
+                var output = OutputPath(file);
+                if (output is not null)
+                {
+                    yield return new PlannedOutput(output, [file], () => Convert(file), $"{file.Archive}/{file.Name}");
+                }
+            }
+
+            foreach (var planned in PlanText(files))
+            {
+                yield return planned;
+            }
+        }
+
+        // One PO file per language, and a POT from the first language's tables. Each depends on all of its tables.
+        private static IEnumerable<PlannedOutput> PlanText(IReadOnlyList<GameFile> files)
+        {
+            var locales = files
+                .Where(e => e.Archive.StartsWith(LOCALE_PREFIX, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(e => e.Archive, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var first = true;
+            foreach (var locale in locales)
+            {
+                var tables = locale
+                    .Where(e => Path.GetExtension(e.Name).Equals(".txt", StringComparison.OrdinalIgnoreCase))
+                    .Where(e => !e.Name.StartsWith(KEYBOARD_TABLE_PREFIX, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (tables.Count == 0)
+                {
+                    continue;
+                }
+
+                var language = locale.Key[LOCALE_PREFIX.Length..].ToLowerInvariant();
+                var poPath = $"{TEXT}/{AssetFileName.ToFileName(language)}.po";
+                yield return new PlannedOutput(poPath, tables, () => ToUtf8(GettextWriter.ToPo(ReadTables(tables), language)), poPath);
+                if (first)
+                {
+                    first = false;
+                    var potPath = $"{TEXT}/{POT_NAME}";
+                    yield return new PlannedOutput(potPath, tables, () => ToUtf8(GettextWriter.ToPot(ReadTables(tables))), potPath);
+                }
+            }
+        }
+
+        private static List<StringTable> ReadTables(List<GameFile> tables)
+        {
+            return tables
+                .Select(e => StringTableReader.Read(Path.GetFileNameWithoutExtension(e.Name), e.Read()))
+                .ToList();
+        }
+
+        private static byte[] ToUtf8(string text)
+        {
+            return new UTF8Encoding(false).GetBytes(text);
+        }
+
         // Where a game file goes, relative to the output directory; null for files the export leaves out
         private static string? OutputPath(GameFile file)
         {
             var extension = Path.GetExtension(file.Name).ToLowerInvariant();
-            return (file.Archive.ToLowerInvariant(), extension) switch
+            var archive = file.Archive.ToLowerInvariant();
+            if (extension == ".dds" && (archive is "audio" or "ambient" || archive.StartsWith("locale_")))
+            {
+                return $"{AUDIO}/{AssetFileName.WithExtension(file.Name, "wav")}";
+            }
+
+            return (archive, extension) switch
             {
                 ("fin", ".fin") => $"{MODELS}/{AssetFileName.WithExtension(file.Name, "glb")}",
                 ("map" or "lmap", ".tga") => $"{TEXTURES}/{AssetFileName.WithExtension(file.Name, "png")}",
@@ -117,6 +200,7 @@ namespace Malumware.BetaTeam.Lib.Export
             {
                 ".fin" => _converter.ToGlb(FinReader.Read(Path.GetFileNameWithoutExtension(file.Name), file.Read())),
                 ".tga" => _pngConverter.ToPng(_tgaReader.Read(file.Read())),
+                ".dds" => _wavConverter.ToWav(DdsAudioReader.Read(Path.GetFileNameWithoutExtension(file.Name), file.Read())),
                 _ => file.Read(),
             };
         }

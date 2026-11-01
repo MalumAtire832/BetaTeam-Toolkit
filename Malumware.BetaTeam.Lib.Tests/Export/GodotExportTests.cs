@@ -40,6 +40,21 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
                 .ToArray();
         }
 
+        // PCM, 1 channel, 22050 Hz, 16 bits, and two samples
+        private static byte[] MinimalDds()
+        {
+            return
+            [
+                1, 0, 1, 0, 0x22, 0x56, 0, 0, 0x44, 0xAC, 0, 0, 2, 0, 16, 0, 0, 0,
+                1, 2, 3, 4,
+            ];
+        }
+
+        private static byte[] Table(string text)
+        {
+            return Encoding.Latin1.GetBytes(text);
+        }
+
         private static GameFile File(string archive, string name, byte[] data, DateTime? modified = null)
         {
             return new GameFile(archive, name, modified ?? SOURCE_TIME, () => data);
@@ -53,6 +68,12 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
                 File("Map", "Studs Gry.tga", MinimalTga()),
                 File("Etc", "M1010_SOLVED.PUZ", Encoding.ASCII.GetBytes("VERSION 1\n")),
                 File("Etc", "UILAYOUT.TXT", Encoding.ASCII.GetBytes("layout\n")),
+                File("Audio", "T0011_WHOA.DDS", MinimalDds()),
+                File("Locale_en", "ABORT1_EN.DDS", MinimalDds()),
+                File("Ambient", "E1010.DDS", MinimalDds()),
+                File("Ambient", "AMBIENT.PAC", []),
+                File("Locale_en", "UNITS_EN.TXT", Table("==cu0001 name==\r\nBelt\r\n")),
+                File("Locale_en", "KBD_EN.TXT", Table("==Kbd Escape==\r\n\\x1B\r\n")),
             ];
         }
 
@@ -73,11 +94,25 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
 
             // Assert
             Assert.Empty(result.Errors);
-            Assert.Equal(4, result.Written);
+            Assert.Equal(9, result.Written);
             Assert.Equal(
-                ["data/uilayout.txt", "levels/m1010_solved.puz", "models/u0001.glb", "textures/studs_gry.png"],
+                [
+                    "audio/abort1_en.wav",
+                    "audio/e1010.wav",
+                    "audio/t0011_whoa.wav",
+                    "data/uilayout.txt",
+                    "levels/m1010_solved.puz",
+                    "models/u0001.glb",
+                    "text/alphateam.pot",
+                    "text/en.po",
+                    "textures/studs_gry.png",
+                ],
                 OutputFiles()
             );
+            Assert.Equal("RIFF", Encoding.ASCII.GetString(System.IO.File.ReadAllBytes(Path.Combine(_output, "audio/e1010.wav")), 0, 4));
+            var po = System.IO.File.ReadAllText(Path.Combine(_output, "text/en.po"));
+            Assert.Contains("msgid \"CU0001 NAME\"", po);
+            Assert.DoesNotContain("KBD", po);
             Assert.Equal("VERSION 1\n", System.IO.File.ReadAllText(Path.Combine(_output, "levels/m1010_solved.puz")));
             Assert.Equal("glTF", Encoding.ASCII.GetString(System.IO.File.ReadAllBytes(Path.Combine(_output, "models/u0001.glb")), 0, 4));
         }
@@ -93,7 +128,7 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
 
             // Assert
             Assert.Equal(0, result.Written);
-            Assert.Equal(4, result.Skipped);
+            Assert.Equal(9, result.Skipped);
         }
 
         [Fact]
@@ -106,7 +141,7 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
             var result = new GodotExport(force: true).Run(EverySource(), _output);
 
             // Assert
-            Assert.Equal(4, result.Written);
+            Assert.Equal(9, result.Written);
             Assert.Equal(0, result.Skipped);
         }
 
@@ -177,7 +212,7 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
             // Assert
             var error = Assert.Single(result.Errors);
             Assert.Contains("BROKEN.FIN", error);
-            Assert.Equal(4, result.Written);
+            Assert.Equal(9, result.Written);
         }
 
         [Fact]
@@ -193,8 +228,65 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
             var result = new GodotExport().Run(files, _output);
 
             // Assert
-            Assert.Equal(4, result.Written);
-            Assert.Equal(4, OutputFiles().Length);
+            Assert.Equal(9, result.Written);
+            Assert.Equal(9, OutputFiles().Length);
+        }
+
+        [Fact]
+        public void Run_RewritesText_WhenAnyTableIsNewer()
+        {
+            // Arrange
+            new GodotExport().Run(EverySource(), _output);
+            var files = EverySource();
+            files.Add(File("Locale_en", "ETC_EN.TXT", Table("==a==\r\nb\r\n"), DateTime.UtcNow.AddDays(1)));
+
+            // Act
+            var result = new GodotExport().Run(files, _output);
+
+            // Assert
+            Assert.Empty(result.Errors);
+            Assert.Equal(2, result.Written);
+            Assert.Equal(7, result.Skipped);
+        }
+
+        [Fact]
+        public void Run_ReportsTextError_AndWritesTheRest_WhenATableHasAControlCharacter()
+        {
+            // Arrange
+            var files = EverySource();
+            files.RemoveAll(e => e.Name == "UNITS_EN.TXT");
+            files.Add(File("Locale_en", "UNITS_EN.TXT", Table("==cu0001 name==\r\n\\x07\r\n")));
+
+            // Act
+            var result = new GodotExport().Run(files, _output);
+
+            // Assert
+            var error = Assert.Single(result.Errors);
+            Assert.StartsWith("text/en.po", error);
+            Assert.Equal(8, result.Written);
+            Assert.Contains("models/u0001.glb", OutputFiles());
+            Assert.Contains("textures/studs_gry.png", OutputFiles());
+            Assert.Contains("audio/t0011_whoa.wav", OutputFiles());
+        }
+
+        [Fact]
+        public void Run_RemovesStaleAudioAndText_ButKeepsOtherFiles()
+        {
+            // Arrange
+            Directory.CreateDirectory(Path.Combine(_output, "audio"));
+            Directory.CreateDirectory(Path.Combine(_output, "text"));
+            System.IO.File.WriteAllText(Path.Combine(_output, "audio/old.wav"), "");
+            System.IO.File.WriteAllText(Path.Combine(_output, "text/de.po"), "");
+            System.IO.File.WriteAllText(Path.Combine(_output, "audio/t0011_whoa.wav.import"), "");
+
+            // Act
+            var result = new GodotExport().Run(EverySource(), _output);
+
+            // Assert
+            Assert.Equal(2, result.Removed);
+            Assert.DoesNotContain("audio/old.wav", OutputFiles());
+            Assert.DoesNotContain("text/de.po", OutputFiles());
+            Assert.Contains("audio/t0011_whoa.wav.import", OutputFiles());
         }
     }
 }

@@ -36,7 +36,12 @@ namespace Malumware.BetaTeam.Lib.IO.Locale
                         continue;
                     }
 
-                    CheckText(table.Name, entry);
+                    // A POT carries no values, so only a PO can fail on one
+                    if (language != null)
+                    {
+                        CheckText(table.Name, entry);
+                    }
+
                     builder.Append("\n#. ").Append(table.Name).Append('\n');
                     builder.Append("msgid ").Append(Quote(entry.Key.ToUpperInvariant())).Append('\n');
                     builder.Append("msgstr ");

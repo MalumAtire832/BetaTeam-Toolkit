@@ -99,8 +99,10 @@ Reads the game's archives directly and writes the asset tree of the Godot port, 
 | `textures/` | `Map.pac` and `LMap.pac` as `.png`; the models refer to them as `../textures/<name>.png`       |
 | `levels/`   | Every `.PUZ`, copied                                                                          |
 | `data/`     | `UILAYOUT.TXT`, `CATEGORYUNITS.TXT` and `CATEGORYIMAGES.TXT`, copied                          |
+| `audio/`    | Every `.DDS` of `Audio.pac`, `Ambient.pac` and the `Locale_*.pac` archives as `.wav` (lossless PCM, no loop points) |
+| `text/`     | `alphateam.pot` and one `<lang>.po` per `Locale_<lang>.pac`, from its string tables (`.TXT`) as gettext; keys are upper case and trailing line feeds are trimmed. `KBD_*` (virtual-key codes, not text) is left out |
 
-Files newer than their archive are left as they are, so a second run only writes what changed; `--force` rewrites
+An output made from several files (the text) is rewritten when any of them changed. Files newer than their archive are left as they are, so a second run only writes what changed; `--force` rewrites
 everything, for after a toolkit update. Files in these folders that the game no longer produces are deleted. Two game
 files that would get the same name stop the export before anything is written.
 

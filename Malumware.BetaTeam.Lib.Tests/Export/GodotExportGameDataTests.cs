@@ -24,6 +24,8 @@ namespace Malumware.BetaTeam.Lib.Tests.Export
                 Assert.Equal(1260, Directory.GetFiles(Path.Combine(output, "textures"), "*.png").Length);
                 Assert.Equal(111, Directory.GetFiles(Path.Combine(output, "levels"), "*.puz").Length);
                 Assert.Equal(3, Directory.GetFiles(Path.Combine(output, "data"), "*.txt").Length);
+                Assert.Equal(498, Directory.GetFiles(Path.Combine(output, "audio"), "*.wav").Length);
+                Assert.Equal(["alphateam.pot", "en.po"], Directory.GetFiles(Path.Combine(output, "text")).Select(Path.GetFileName).Order().ToArray());
                 Assert.Equal(0, second.Written);
                 Assert.Equal(first.Written, second.Skipped);
             }
